@@ -5,7 +5,9 @@ const chrome = { channel: process.env.CI ? undefined : 'chrome', launchOptions: 
 
 export default defineConfig({
   testDir: 'e2e',
-  timeout: 60_000,
+  timeout: 90_000,
+  // El CI dibuja WebGL por software y va lento: la partida avanza más despacio que el reloj.
+  expect: { timeout: 20_000 },
   fullyParallel: false,
   workers: 1,
   reporter: 'list',

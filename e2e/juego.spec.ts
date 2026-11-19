@@ -62,6 +62,10 @@ test('al subir de nivel se elige una mejora', async ({ page }) => {
   await page.evaluate(() => ((window as any).__umbral.scene.getScene('Juego').pendientes = 1));
   await expect.poll(async () => (await estado(page)).eligiendo).toBe(true);
   const antes = await estado(page);
+  // Espera a que el panel termine su fundido de entrada antes de pulsar.
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__umbral.scene.getScene('Hud').capa?.alpha ?? 0))
+    .toBe(1);
   // Pulsa la primera tarjeta (el centro de la pantalla queda dentro de la segunda, así que se usa la tecla o el toque).
   const tarjeta = await page.evaluate(() => {
     const hud = (window as any).__umbral.scene.getScene('Hud');
