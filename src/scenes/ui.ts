@@ -1,0 +1,92 @@
+import Phaser from 'phaser';
+import { COLOR, CSS } from '../art/paleta';
+import { FUENTE, FUENTE_TEXTO } from './Arranque';
+
+/** Unidad de escala de la interfaz según el tamaño de la pantalla. */
+export function unidad(scene: Phaser.Scene): number {
+  const { width, height } = scene.scale;
+  return Phaser.Math.Clamp(Math.min(width, height) / 380, 1, 2.4);
+}
+
+export function texto(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  contenido: string,
+  tam: number,
+  color: string = CSS.hueso,
+  negrita = false,
+): Phaser.GameObjects.Text {
+  // La negrita usa la fuente de títulos; el resto, la de texto, que es más pequeña a igual tamaño.
+  return scene.add.text(x, y, contenido, {
+    fontFamily: negrita ? FUENTE : FUENTE_TEXTO,
+    fontSize: `${Math.round(negrita ? tam : tam * 1.3)}px`,
+    fontStyle: negrita ? 'bold' : 'normal',
+    color,
+    stroke: '#0b0a12',
+    strokeThickness: Math.max(2, Math.round(tam / 6)),
+  });
+}
+
+export interface Boton {
+  cont: Phaser.GameObjects.Container;
+  etiqueta: Phaser.GameObjects.Text;
+  fondo: Phaser.GameObjects.Rectangle;
+  pulsar: () => void;
+  resaltar: (on: boolean) => void;
+}
+
+/** Botón rectangular con borde, al estilo de los paneles del juego. */
+export function boton(scene: Phaser.Scene, x: number, y: number, ancho: number, contenido: string, alPulsar: () => void, u: number): Boton {
+  const alto = Math.round(34 * u);
+  const fondo = scene.add.rectangle(0, 0, ancho, alto, COLOR.panel).setStrokeStyle(Math.max(2, Math.round(2 * u)), COLOR.borde);
+  const etiqueta = texto(scene, 0, 0, contenido, 15 * u, CSS.hueso, true).setOrigin(0.5);
+  const cont = scene.add.container(x, y, [fondo, etiqueta]).setSize(ancho, alto);
+  const resaltar = (on: boolean) => {
+    fondo.setStrokeStyle(Math.max(2, Math.round(2 * u)), on ? COLOR.ambar : COLOR.borde);
+    fondo.setFillStyle(on ? 0x221c2c : COLOR.panel);
+    etiqueta.setColor(on ? CSS.ambarClaro : CSS.hueso);
+  };
+  const pulsar = () => {
+    (scene.registry.get('sonido') as { reproducir: (n: 'boton') => void } | undefined)?.reproducir('boton');
+    alPulsar();
+  };
+  fondo.setInteractive({ useHandCursor: true });
+  fondo.on('pointerover', () => resaltar(true));
+  fondo.on('pointerout', () => resaltar(false));
+  fondo.on('pointerup', pulsar);
+  return { cont, etiqueta, fondo, pulsar, resaltar };
+}
+
+/** Panel oscuro con borde doble, para fondos de menús. */
+export function panel(scene: Phaser.Scene, x: number, y: number, w: number, h: number, u: number): Phaser.GameObjects.Graphics {
+  const g = scene.add.graphics();
+  g.fillStyle(COLOR.fondo, 0.94);
+  g.fillRect(x - w / 2, y - h / 2, w, h);
+  g.lineStyle(Math.max(2, Math.round(2 * u)), COLOR.borde, 1);
+  g.strokeRect(x - w / 2, y - h / 2, w, h);
+  g.lineStyle(1, COLOR.ambar, 0.35);
+  g.strokeRect(x - w / 2 + 4 * u, y - h / 2 + 4 * u, w - 8 * u, h - 8 * u);
+  return g;
+}
+
+/** Navegación con teclado entre botones: flechas, Tab y Enter. */
+export function navegarConTeclado(scene: Phaser.Scene, botones: Boton[], inicial = 0): () => void {
+  let foco = inicial;
+  const pintar = () => botones.forEach((b, i) => b.resaltar(i === foco));
+  pintar();
+  const tecla = (ev: KeyboardEvent) => {
+    if (['ArrowDown', 'ArrowRight', 'Tab', 's', 'S'].includes(ev.key)) {
+      foco = (foco + 1) % botones.length;
+      ev.preventDefault();
+    } else if (['ArrowUp', 'ArrowLeft', 'w', 'W'].includes(ev.key)) {
+      foco = (foco - 1 + botones.length) % botones.length;
+    } else if (ev.key === 'Enter' || ev.key === ' ') {
+      botones[foco]?.pulsar();
+      return;
+    } else return;
+    pintar();
+  };
+  scene.input.keyboard?.on('keydown', tecla);
+  return () => scene.input.keyboard?.off('keydown', tecla);
+}

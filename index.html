@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#07050c" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <title>Umbral</title>
+    <meta
+      name="description"
+      content="Umbral: un juego de acción por oleadas en pixel art. Un cazador con un farol que se apaga resiste noches enteras en un bosque maldito."
+    />
+    <meta property="og:title" content="Umbral" />
+    <meta property="og:description" content="Aguanta la noche en un bosque maldito. Juego de acción por oleadas en pixel art, gratis en el navegador." />
+    <meta property="og:type" content="website" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #07050c;
+        overflow: hidden;
+        overscroll-behavior: none;
+        touch-action: none;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      #juego {
+        position: fixed;
+        inset: 0;
+      }
+      #juego canvas {
+        display: block;
+      }
+      noscript {
+        color: #f2eee3;
+        font: 16px/1.5 system-ui, sans-serif;
+        display: block;
+        padding: 24px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="juego" aria-label="Juego Umbral"></div>
+    <noscript>Umbral necesita JavaScript para funcionar.</noscript>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
