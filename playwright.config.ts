@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const chrome = { channel: 'chrome', launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] } };
+// En local se usa el Chrome instalado; en CI, el Chromium que descarga Playwright.
+const chrome = { channel: process.env.CI ? undefined : 'chrome', launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] } };
 
 export default defineConfig({
   testDir: 'e2e',
