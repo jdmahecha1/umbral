@@ -1,4 +1,7 @@
+import { ALTAR_VACIO, bonosAltar, type BonosAltar } from './altar';
+import { statsCampana, statsDagas, statsHoz, statsLlamarada, statsRunas } from './armas';
 import { mezclar, type Rng } from './rng';
+import type { IdReliquia } from './tienda';
 
 export type IdArma = 'hoz' | 'dagas' | 'farol' | 'runas' | 'campana';
 export type IdPasiva = 'botas' | 'roble' | 'musgo' | 'iman' | 'filo' | 'reloj' | 'mecha' | 'coraza';
@@ -9,102 +12,45 @@ export interface DefMejora {
   id: IdMejora;
   tipo: 'arma' | 'pasiva' | 'consumible';
   nombre: string;
-  /** Una descripción por nivel: el índice 0 es la que se ve al obtenerla. */
-  niveles: string[];
+  /** Qué hace, en una frase clara para cualquier persona. */
+  que: string;
+  /** Nivel máximo. */
+  max: number;
 }
 
 export const MAX_ARMAS = 4;
 export const MAX_PASIVAS = 4;
 
 export const ARMAS: Record<IdArma, DefMejora> = {
-  hoz: {
-    id: 'hoz',
-    tipo: 'arma',
-    nombre: 'Hoz de plata',
-    niveles: [
-      'Un tajo amplio hacia donde miras.',
-      'Más daño por tajo.',
-      'También corta a tu espalda.',
-      'El tajo es un 25 % más amplio.',
-      'Más daño y tajos más seguidos.',
-    ],
-  },
-  dagas: {
-    id: 'dagas',
-    tipo: 'arma',
-    nombre: 'Dagas de hueso',
-    niveles: [
-      'Lanza una daga al enemigo más cercano.',
-      'Una daga más y atraviesa a un enemigo.',
-      'Más daño por daga.',
-      'Una daga más.',
-      'Una daga más y atraviesan a tres enemigos.',
-    ],
-  },
-  farol: {
-    id: 'farol',
-    tipo: 'arma',
-    nombre: 'Farol sagrado',
-    niveles: [
-      'Un halo que quema a los que se acercan y amplía tu luz.',
-      'El halo es más grande.',
-      'Quema más y más seguido.',
-      'El halo es más grande.',
-      'Quema mucho más.',
-    ],
-  },
-  runas: {
-    id: 'runas',
-    tipo: 'arma',
-    nombre: 'Runas errantes',
-    niveles: [
-      'Una runa gira a tu alrededor y golpea al pasar.',
-      'Una runa más.',
-      'Las runas giran más rápido y golpean más fuerte.',
-      'Una runa más.',
-      'Una runa más y su órbita es más amplia.',
-    ],
-  },
-  campana: {
-    id: 'campana',
-    tipo: 'arma',
-    nombre: 'Campana de difuntos',
-    niveles: [
-      'Cada pocos segundos, una onda que daña y empuja.',
-      'La onda llega más lejos.',
-      'Más daño.',
-      'Suena más seguido.',
-      'Más daño y la onda llega mucho más lejos.',
-    ],
-  },
+  hoz: { id: 'hoz', tipo: 'arma', nombre: 'Hoz de plata', que: 'Al atacar, das un tajo en arco hacia donde apuntas. Golpea a todos los que alcanza.', max: 5 },
+  dagas: { id: 'dagas', tipo: 'arma', nombre: 'Dagas de hueso', que: 'Al atacar, lanzas dagas hacia donde apuntas. Llegan lejos.', max: 5 },
+  farol: { id: 'farol', tipo: 'arma', nombre: 'Llamarada del farol', que: 'Al atacar, sueltas un chorro de fuego hacia donde apuntas. Además, tu farol alumbra más.', max: 5 },
+  runas: { id: 'runas', tipo: 'arma', nombre: 'Runas errantes', que: 'Al atacar, lanzas runas que van hacia donde apuntas y vuelven a ti, golpeando a la ida y a la vuelta.', max: 5 },
+  campana: { id: 'campana', tipo: 'arma', nombre: 'Campana de difuntos', que: 'Al atacar, la campana suena y una onda daña y aleja a todos los enemigos que te rodean.', max: 5 },
 };
 
 export const PASIVAS: Record<IdPasiva, DefMejora> = {
-  botas: { id: 'botas', tipo: 'pasiva', nombre: 'Botas de viajero', niveles: nivelesIguales('Te mueves un 8 % más rápido.') },
-  roble: { id: 'roble', tipo: 'pasiva', nombre: 'Corazón de roble', niveles: nivelesIguales('+20 de vida máxima.') },
-  musgo: { id: 'musgo', tipo: 'pasiva', nombre: 'Musgo curativo', niveles: nivelesIguales('Recuperas 0,25 de vida por segundo.') },
-  iman: { id: 'iman', tipo: 'pasiva', nombre: 'Ámbar imantado', niveles: nivelesIguales('Atraes las gemas desde un 30 % más lejos.') },
-  filo: { id: 'filo', tipo: 'pasiva', nombre: 'Piedra de afilar', niveles: nivelesIguales('Todo tu daño sube un 10 %.') },
-  reloj: { id: 'reloj', tipo: 'pasiva', nombre: 'Reloj de arena', niveles: nivelesIguales('Tus armas se recargan un 7 % antes.') },
-  mecha: { id: 'mecha', tipo: 'pasiva', nombre: 'Mecha larga', niveles: nivelesIguales('El farol gasta un 15 % menos y alumbra más.') },
-  coraza: { id: 'coraza', tipo: 'pasiva', nombre: 'Coraza de cuero', niveles: nivelesIguales('Recibes 1 punto menos de daño por golpe.') },
+  botas: { id: 'botas', tipo: 'pasiva', nombre: 'Paso ligero', que: 'Caminas más rápido.', max: 5 },
+  roble: { id: 'roble', tipo: 'pasiva', nombre: 'Corazón de roble', que: 'Tienes más vida máxima.', max: 5 },
+  musgo: { id: 'musgo', tipo: 'pasiva', nombre: 'Musgo curativo', que: 'Recuperas vida poco a poco, sin hacer nada.', max: 5 },
+  iman: { id: 'iman', tipo: 'pasiva', nombre: 'Ámbar imantado', que: 'Atraes el ámbar y las monedas desde más lejos.', max: 5 },
+  filo: { id: 'filo', tipo: 'pasiva', nombre: 'Piedra de afilar', que: 'Todas tus armas hacen más daño.', max: 5 },
+  reloj: { id: 'reloj', tipo: 'pasiva', nombre: 'Reloj de arena', que: 'Tus armas tardan menos en volver a estar listas.', max: 5 },
+  mecha: { id: 'mecha', tipo: 'pasiva', nombre: 'Mecha larga', que: 'El aceite del farol dura más y ves más lejos.', max: 5 },
+  coraza: { id: 'coraza', tipo: 'pasiva', nombre: 'Coraza de cuero', que: 'Cada golpe que recibes te quita un poco menos de vida.', max: 5 },
 };
 
 export const CONSUMIBLES: Record<IdConsumible, DefMejora> = {
-  pan: { id: 'pan', tipo: 'consumible', nombre: 'Pan de centeno', niveles: ['Recuperas 30 de vida.'] },
-  aceite: { id: 'aceite', tipo: 'consumible', nombre: 'Frasco de aceite', niveles: ['Llenas el farol a tope.'] },
+  pan: { id: 'pan', tipo: 'consumible', nombre: 'Pan de centeno', que: 'Recuperas 30 de vida ahora mismo.', max: 1 },
+  aceite: { id: 'aceite', tipo: 'consumible', nombre: 'Frasco de aceite', que: 'Llenas el farol ahora mismo.', max: 1 },
 };
-
-function nivelesIguales(texto: string): string[] {
-  return Array.from({ length: 5 }, () => texto);
-}
 
 export function definicion(id: IdMejora): DefMejora {
   return (ARMAS as Record<string, DefMejora>)[id] ?? (PASIVAS as Record<string, DefMejora>)[id] ?? CONSUMIBLES[id as IdConsumible];
 }
 
 export function maxNivel(id: IdMejora): number {
-  return definicion(id).niveles.length;
+  return definicion(id).max;
 }
 
 /** Lo que el jugador lleva: id → nivel actual (1 a 5). */
@@ -126,7 +72,10 @@ export interface Opcion {
   /** Nivel que tendrá tras elegirla (1 = nueva). */
   nivel: number;
   nombre: string;
-  texto: string;
+  /** Qué hace (frase clara). */
+  que: string;
+  /** Cambios concretos con números, por ejemplo "Daño: 12 → 16". */
+  cambios: string[];
   tipo: DefMejora['tipo'];
 }
 
@@ -146,10 +95,105 @@ export function candidatas(inv: Inventario): IdMejora[] {
   return res;
 }
 
+const seg = (s: number) => `${s.toFixed(2).replace(/0$/, '').replace('.', ',')} s`;
+const pct = (x: number) => `${Math.round(x * 100)} %`;
+
+/** Nombra un tamaño con palabras: los números internos del juego no le dicen nada a un jugador. */
+function tamano(valor: number, umbrales: [number, string][]): string {
+  let res = umbrales[0]![1];
+  for (const [min, nombre] of umbrales) if (valor >= min) res = nombre;
+  return res;
+}
+
+const ALCANCE_CORTO: [number, string][] = [[0, 'corto'], [38, 'medio'], [50, 'largo'], [60, 'muy largo']];
+const DISTANCIA: [number, string][] = [[0, 'media'], [80, 'larga'], [100, 'muy larga']];
+const ONDA: [number, string][] = [[0, 'mediana'], [70, 'grande'], [100, 'enorme']];
+/** Luz base del farol lleno, para expresar la luz extra en porcentaje. */
+const LUZ_BASE = 94;
+
+/** Pares [etiqueta, valor] de un arma en un nivel: para mostrar "antes → después". */
+function statsArma(id: IdArma, nivel: number): [string, string][] {
+  switch (id) {
+    case 'hoz': {
+      const s = statsHoz(nivel);
+      return [
+        ['Daño', String(s.dano)],
+        ['Alcance', tamano(s.alcance, ALCANCE_CORTO)],
+        ['Espera entre tajos', seg(s.recarga)],
+        ['También golpea a los enemigos a tu espalda', s.atras ? 'sí' : 'no'],
+      ];
+    }
+    case 'dagas': {
+      const s = statsDagas(nivel);
+      return [['Daño', String(s.dano)], ['Dagas por ataque', String(s.cantidad)], ['Enemigos que atraviesa cada daga', String(s.atraviesa)]];
+    }
+    case 'farol': {
+      const s = statsLlamarada(nivel);
+      return [
+        ['Daño', String(s.dano)],
+        ['Alcance del fuego', tamano(s.alcance, ALCANCE_CORTO)],
+        ['Espera entre llamaradas', seg(s.recarga)],
+        ['Tu farol alumbra', `+${Math.round((s.luzExtra / LUZ_BASE) * 100)} %`],
+      ];
+    }
+    case 'runas': {
+      const s = statsRunas(nivel);
+      return [['Daño', String(s.dano)], ['Runas por ataque', String(s.cantidad)], ['Distancia', tamano(s.alcance, DISTANCIA)]];
+    }
+    case 'campana': {
+      const s = statsCampana(nivel);
+      return [['Daño', String(s.dano)], ['Tamaño de la onda', tamano(s.alcance, ONDA)], ['Espera entre campanadas', seg(s.recarga)]];
+    }
+  }
+}
+
+/** Lo que da una pasiva en total a ese nivel: pares [etiqueta, valor]. */
+function totalPasiva(id: IdPasiva, nivel: number): [string, string][] {
+  switch (id) {
+    case 'botas':
+      return [['Velocidad', `+${pct(0.08 * nivel)}`]];
+    case 'roble':
+      return [['Vida máxima', `+${20 * nivel}`]];
+    case 'musgo':
+      return [['Vida que recuperas', `${2 * nivel} cada 5 segundos`]];
+    case 'iman':
+      return [['Distancia para recoger', `+${pct(0.3 * nivel)}`]];
+    case 'filo':
+      return [['Daño de todas las armas', `+${pct(0.1 * nivel)}`]];
+    case 'reloj':
+      return [['Tus armas atacan', `+${pct(1 / Math.pow(0.93, nivel) - 1)} más rápido`]];
+    case 'mecha':
+      return [
+        ['El aceite dura', `+${pct(1 / Math.pow(0.85, nivel) - 1)}`],
+        ['Ves más lejos', `+${pct(0.08 * nivel)}`],
+      ];
+    case 'coraza':
+      return [['Daño que bloqueas en cada golpe', String(nivel)]];
+  }
+}
+
+/** Cambios concretos al pasar al nivel `nivel` (con números). */
+export function cambios(id: IdMejora, nivel: number): string[] {
+  const def = definicion(id);
+  if (def.tipo === 'consumible') return [];
+  const ahora = def.tipo === 'pasiva' ? totalPasiva(id as IdPasiva, nivel) : statsArma(id as IdArma, nivel);
+  // Las cualidades de sí/no se escriben como frase, sin dos puntos.
+  const linea = (k: string, v: string, antes?: string) =>
+    v === 'sí' ? `Ahora ${k.charAt(0).toLowerCase()}${k.slice(1)}` : antes === undefined ? `${k}: ${v}` : `${k}: ${antes} → ${v}`;
+  if (nivel === 1) return ahora.filter(([, v]) => v !== 'no').map(([k, v]) => (v === 'sí' ? k : linea(k, v)));
+  const antes = def.tipo === 'pasiva' ? totalPasiva(id as IdPasiva, nivel - 1) : statsArma(id as IdArma, nivel - 1);
+  // Solo lo que cambia, para que se vea al instante qué mejora.
+  // Se empareja por posición ANTES de filtrar, para que cada valor vaya con su "antes".
+  return ahora
+    .map(([k, v], i) => [k, v, antes[i]![1]] as const)
+    .filter(([, v, a]) => v !== a)
+    .map(([k, v, a]) => linea(k, v, a));
+}
+
 function aOpcion(inv: Inventario, id: IdMejora): Opcion {
   const def = definicion(id);
   const nivel = def.tipo === 'consumible' ? 1 : nivelDe(inv, id) + 1;
-  return { id, nivel, nombre: def.nombre, texto: def.niveles[nivel - 1] ?? def.niveles[0]!, tipo: def.tipo };
+  return { id, nivel, nombre: def.nombre, que: def.que, cambios: cambios(id, nivel), tipo: def.tipo };
 }
 
 /**
@@ -191,33 +235,63 @@ export interface Atributos {
   gastoAceite: number;
   luz: number;
   armadura: number;
+  /** Multiplicador de experiencia. */
+  xp: number;
+  /** Multiplicador de probabilidad de monedas. */
+  monedas: number;
+  /** Probabilidad de que un golpe no haga daño (0..1). */
+  esquiva: number;
+  /** Daño a los enemigos que te tocan. */
+  espinas: number;
+  /** Aceite mínimo (0..100) por debajo del cual el farol no baja. */
+  aceiteMin: number;
 }
 
 export const BASE: Atributos = {
   vidaMax: 100,
   velocidad: 62,
   regeneracion: 0,
-  radioRecoger: 26,
+  radioRecoger: 40,
   dano: 1,
   enfriamiento: 1,
   gastoAceite: 1,
   luz: 1,
   armadura: 0,
+  xp: 1,
+  monedas: 1,
+  esquiva: 0,
+  espinas: 0,
+  aceiteMin: 0,
 };
 
-/** Atributos del jugador según sus pasivas. */
-export function atributos(inv: Inventario): Atributos {
+/** Lo que llega de fuera de la partida (Altar) y lo comprado al mercader (reliquias). */
+export interface Extras {
+  altar: BonosAltar;
+  reliquias: ReadonlySet<IdReliquia>;
+}
+
+export const SIN_EXTRAS: Extras = { altar: bonosAltar(ALTAR_VACIO.niveles), reliquias: new Set() };
+
+/** Atributos del jugador según sus pasivas, el Altar y las reliquias. */
+export function atributos(inv: Inventario, extras: Extras = SIN_EXTRAS): Atributos {
   const n = (id: IdPasiva) => inv.pasivas[id] ?? 0;
+  const r = (id: IdReliquia) => extras.reliquias.has(id);
+  const a = extras.altar;
   return {
-    vidaMax: BASE.vidaMax + 20 * n('roble'),
-    velocidad: BASE.velocidad * (1 + 0.08 * n('botas')),
-    regeneracion: BASE.regeneracion + 0.25 * n('musgo'),
+    vidaMax: BASE.vidaMax + 20 * n('roble') + a.vidaExtra,
+    velocidad: BASE.velocidad * (1 + 0.08 * n('botas')) * a.velocidad * (r('leguas') ? 1.15 : 1),
+    regeneracion: BASE.regeneracion + 0.4 * n('musgo'),
     radioRecoger: BASE.radioRecoger * (1 + 0.3 * n('iman')),
-    dano: BASE.dano * (1 + 0.1 * n('filo')),
+    dano: BASE.dano * (1 + 0.1 * n('filo')) * a.dano * (r('colmillo') ? 1.2 : 1),
     enfriamiento: BASE.enfriamiento * Math.pow(0.93, n('reloj')),
-    gastoAceite: BASE.gastoAceite * Math.pow(0.85, n('mecha')),
-    luz: BASE.luz * (1 + 0.08 * n('mecha')),
+    gastoAceite: (BASE.gastoAceite * Math.pow(0.85, n('mecha'))) / a.aceite,
+    luz: BASE.luz * (1 + 0.08 * n('mecha')) * (r('linterna') ? 1.25 : 1),
     armadura: BASE.armadura + n('coraza'),
+    xp: a.xp * (r('caliz') ? 1.4 : 1),
+    monedas: a.monedas,
+    esquiva: r('capa') ? 1 / 6 : 0,
+    espinas: r('espinas') ? 12 : 0,
+    aceiteMin: r('linterna') ? 20 : 0,
   };
 }
 

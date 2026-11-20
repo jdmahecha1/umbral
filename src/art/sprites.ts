@@ -310,7 +310,45 @@ export const ICONOS: Record<string, Mapa> = {
   aceite: ACEITE[0]!,
   corazon: ['.00...00.', '0ml0.0ll0', '0mll0lll0', '0lllllll0', '.0lllll0.', '..0lll0..', '...0l0...', '....0....'],
   calavera: ['.00000.', '0555550', '0505050', '0555550', '.05550.', '.05050.', '..000..'],
+  moneda: ['..000..', '.04550.', '0455540', '0453540', '0444340', '.03330.', '..000..'],
+  brasa: ['...0...', '..0f0..', '.0ffe0.', '0ffeef0', '0fe5ef0', '0feeef0', '.0fff0.', '..000..'],
+  gema: ['..0..', '.0e0.', '0eed0', '0edd0', '0ddc0', '.0c0.', '..0..'],
+  // Reliquias y artículos del mercader
+  amuleto: ['..0000..', '.0....0.', '.0....0.', '..0..0..', '...00...', '..0ll0..', '.0lmll0.', '.0llll0.', '..0ll0..', '...00...'],
+  caliz: [
+    '0000000000',
+    '0deeeeeed0',
+    '.0deeeed0.',
+    '..0dddd0..',
+    '...0dd0...',
+    '...0dd0...',
+    '...0dd0...',
+    '..0dddd0..',
+    '.00000000.',
+  ],
+  capa: [
+    '...0000...',
+    '..0r22r0..',
+    '..022220..',
+    '.0r2222r0.',
+    '.0r2222r0.',
+    '0rr2222rr0',
+    '0rr2222rr0',
+    '0rrr22rrr0',
+    '0rrrrrrrr0',
+    '0r0r0r0r00',
+    '.0.0.0.0..',
+  ],
+  espinas: ['5...55...5', '05.0uu0.50', '.0uvvvvu0.', '0uvuuuuvu0', '0uuvuuvuu0', '0uuuvvuuu0', '.0uuuuuu0.', '5.0uuuu0.5', '...0000...'],
+  colmillo: ['00000000', '05555550', '.055550.', '.055540.', '..05540.', '..0540..', '...050..', '...00...'],
+  elixir: ['...00...', '..0cc0..', '..0440..', '.004400.', '0llmmll0', '0lllmll0', '0kllllk0', '.0kkkk0.', '..0000..'],
+  pergamino: ['.00000000.', '0c555555c0', '.05333350.', '.05555550.', '.05333350.', '.05555550.', '0c555555c0', '.00000000.'],
+  forja: ['..e....e..', '.e..ee..e.', '.000000000', '0uvvvvvvu0', '.0uuuuuu0.', '...0uu0...', '..0uuuu0..', '.0uuuuuu0.', '.00000000.'],
 };
+
+// Variantes de color de íconos existentes.
+ICONOS.linterna = recolorear([ICONOS.farol!], { c: '4', e: '5', f: 'e' })[0]!;
+ICONOS.leguas = recolorear([ICONOS.botas!], { b: 'r', c: 's' })[0]!;
 
 /** Sprites que se convierten en textura con fotogramas animados. */
 export const SPRITES: Record<string, Sprite> = {
@@ -331,6 +369,7 @@ export const SPRITES: Record<string, Sprite> = {
   hongos: HONGOS,
   lapida: LAPIDA,
   hierba: HIERBA,
+  moneda: [['..000..', '.04550.', '0455540', '0453540', '0444340', '.03330.', '..000..']],
   raizon: RAIZON,
   ciervo: CIERVO,
 };

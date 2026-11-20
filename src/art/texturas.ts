@@ -99,6 +99,8 @@ export function generarTexturas(scene: Phaser.Scene): void {
   // Gemas de tres valores: ámbar (1), azul (3) y roja (10).
   registrarSprite(scene, 'gema-azul', recolorear(SPRITES.gema!, { e: 'q', d: 'p', c: 'o' }));
   registrarSprite(scene, 'gema-roja', recolorear(SPRITES.gema!, { e: 'm', d: 'l', c: 'k' }));
+  // Moneda de oro (vale 5): la de plata con colores dorados.
+  registrarSprite(scene, 'moneda-oro', recolorear(SPRITES.moneda!, { '3': 'c', '4': 'd', '5': 'e' }));
   for (const [id, mapa] of Object.entries(ICONOS)) registrarMapa(scene, `icono-${id}`, mapa);
   for (let i = 0; i < 3; i++) registrarMapa(scene, `pino-${i}`, pino(11 + i * 31, 22 + i * 2, 36 + i * 4));
   for (let i = 0; i < 2; i++) registrarMapa(scene, `arbusto-${i}`, arbusto(5 + i * 17));

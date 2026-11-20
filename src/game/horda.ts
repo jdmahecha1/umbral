@@ -130,7 +130,7 @@ export class Horda {
     e.y = y;
   }
 
-  actualizar(dt: number, j: Jugador, onDanoJugador: (d: number) => void): void {
+  actualizar(dt: number, j: Jugador, onDanoJugador: (d: number, quien?: Enemigo) => void): void {
     this.rejilla.vaciar();
     for (const e of this.lista) if (e.activo) this.rejilla.insertar(e.id, e.x, e.y);
 
@@ -209,7 +209,7 @@ export class Horda {
       // Choque con el jugador.
       if (dist < e.def.radio + 5) {
         const d = j.herir(e.def.dano);
-        if (d > 0) onDanoJugador(d);
+        if (d > 0 || j.esquivo) onDanoJugador(d, e);
       }
 
       if (e.destello > 0) {
@@ -264,7 +264,7 @@ export class Horda {
     this.balas.push({ spr, x, y, vx: dx * 70, vy: dy * 70, vida: 4, dano });
   }
 
-  private actualizarBalas(dt: number, j: Jugador, onDanoJugador: (d: number) => void): void {
+  private actualizarBalas(dt: number, j: Jugador, onDanoJugador: (d: number, quien?: Enemigo) => void): void {
     for (let i = this.balas.length - 1; i >= 0; i--) {
       const b = this.balas[i]!;
       b.x += b.vx * dt;
@@ -273,7 +273,7 @@ export class Horda {
       b.spr.setPosition(b.x, b.y);
       if (Math.hypot(b.x - j.x, b.y - (j.y - 6)) < 7) {
         const d = j.herir(b.dano);
-        if (d > 0) onDanoJugador(d);
+        if (d > 0 || j.esquivo) onDanoJugador(d);
         b.vida = 0;
       }
       if (b.vida <= 0) {

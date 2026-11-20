@@ -29,6 +29,9 @@ export class Arranque extends Phaser.Scene {
         semilla: Number(parametros.get('semilla')) || undefined,
         // Solo para desarrollo y pruebas: empezar la noche en un segundo concreto.
         desde: Number(parametros.get('desde')) || 0,
+        monedas: Number(parametros.get('monedas')) || 0,
+        bot: parametros.has('bot'),
+        rapido: Number(parametros.get('rapido')) || 1,
       });
     else this.scene.start('Menu');
   }

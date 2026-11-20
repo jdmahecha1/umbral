@@ -15,13 +15,15 @@ export function texto(
   contenido: string,
   tam: number,
   color: string = CSS.hueso,
-  negrita = false,
+  estilo: boolean | 'titulo' = false,
 ): Phaser.GameObjects.Text {
-  // La negrita usa la fuente de títulos; el resto, la de texto, que es más pequeña a igual tamaño.
+  // Pixelify en negrita solo para títulos grandes: a tamaño pequeño confunde la c con la o y el 2 con el 8.
+  // Todo lo demás usa Jersey 10, más legible (y más pequeña a igual tamaño, de ahí el 1,3).
+  const titulo = estilo === 'titulo';
   return scene.add.text(x, y, contenido, {
-    fontFamily: negrita ? FUENTE : FUENTE_TEXTO,
-    fontSize: `${Math.round(negrita ? tam : tam * 1.3)}px`,
-    fontStyle: negrita ? 'bold' : 'normal',
+    fontFamily: titulo ? FUENTE : FUENTE_TEXTO,
+    fontSize: `${Math.round(titulo ? tam : tam * (estilo ? 1.4 : 1.3))}px`,
+    fontStyle: titulo ? 'bold' : 'normal',
     color,
     stroke: '#0b0a12',
     strokeThickness: Math.max(2, Math.round(tam / 6)),
@@ -40,7 +42,7 @@ export interface Boton {
 export function boton(scene: Phaser.Scene, x: number, y: number, ancho: number, contenido: string, alPulsar: () => void, u: number): Boton {
   const alto = Math.round(34 * u);
   const fondo = scene.add.rectangle(0, 0, ancho, alto, COLOR.panel).setStrokeStyle(Math.max(2, Math.round(2 * u)), COLOR.borde);
-  const etiqueta = texto(scene, 0, 0, contenido, 15 * u, CSS.hueso, true).setOrigin(0.5);
+  const etiqueta = texto(scene, 0, 0, contenido, 14 * u, CSS.hueso, true).setOrigin(0.5);
   const cont = scene.add.container(x, y, [fondo, etiqueta]).setSize(ancho, alto);
   const resaltar = (on: boolean) => {
     fondo.setStrokeStyle(Math.max(2, Math.round(2 * u)), on ? COLOR.ambar : COLOR.borde);

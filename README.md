@@ -1,23 +1,28 @@
 # Umbral
 
-Juego de acción por oleadas en pixel art para el navegador. Un cazador con un farol aguanta la noche en un bosque maldito: sus armas atacan solas, tú solo te mueves, recoges ámbar para subir de nivel y eliges mejoras. El farol es tu visión y se va apagando; si no recoges aceite, el bosque se te viene encima a oscuras.
+Juego de acción por oleadas en pixel art para el navegador. Un cazador con un farol aguanta la noche en un bosque maldito: te mueves, apuntas y atacas, recoges ámbar para subir de nivel y eliges mejoras. El farol es tu visión y se va apagando; si no recoges aceite, el bosque se te viene encima a oscuras.
 
 > En desarrollo: ya se puede jugar una noche completa, de principio a fin.
 
 ## Cómo se juega
 
-- **Moverse:** WASD o flechas; en el móvil, arrastra el dedo en cualquier parte de la pantalla. Las armas atacan solas.
-- **Subir de nivel:** recoge el ámbar que sueltan los enemigos y elige una de tres mejoras (con el ratón, el dedo o las teclas 1, 2 y 3).
+- **Moverse:** WASD o flechas. En el celular, arrastra el dedo por la mitad izquierda de la pantalla.
+- **Atacar:** clic izquierdo (se puede mantener presionado) o barra espaciadora; las armas apuntan al cursor. En el celular, mantén el dedo en la mitad derecha: atacas y las armas apuntan al enemigo más cercano. Ninguna arma ataca sola.
+- **Subir de nivel:** recoge el ámbar que sueltan los enemigos y elige una de tres mejoras. Cada tarjeta dice qué hace la mejora y qué números cambian.
 - **El farol:** se gasta. El aceite que sueltan algunos enemigos lo rellena. Sin aceite, la luz se reduce al mínimo.
+- **El mercader:** tres veces por noche el tiempo se detiene y puedes gastar las monedas de la partida en reliquias (revivir una vez, esquivar golpes, más daño…) o en objetos de un solo uso.
+- **El Altar:** al terminar ganas brasas, que se guardan para siempre. En el menú las cambias por mejoras permanentes.
 - **La noche:** dura 10 minutos. A los 5 llega el Guardián de musgo y, al amanecer, el Ciervo de Ceniza. Si lo vences, ganas.
-- **Pausa:** Esc o P.
+- **Pausa:** Esc o P, o el botón II.
 
 ## Contenido
 
 | | |
 |---|---|
-| Armas | Hoz de plata, Dagas de hueso, Farol sagrado, Runas errantes, Campana de difuntos (5 niveles cada una) |
-| Mejoras pasivas | Botas, Corazón de roble, Musgo, Ámbar imantado, Piedra de afilar, Reloj de arena, Mecha larga, Coraza |
+| Armas | Hoz de plata, Dagas de hueso, Llamarada del farol, Runas errantes, Campana de difuntos (5 niveles cada una) |
+| Mejoras pasivas | Paso ligero, Corazón de roble, Musgo curativo, Ámbar imantado, Piedra de afilar, Reloj de arena, Mecha larga, Coraza de cuero |
+| Reliquias del mercader | Amuleto del segundo aliento, Cáliz de ámbar, Capa de sombra, Cota de espinas, Linterna de plata, Colmillo de lobo, Botas de siete leguas |
+| Altar | Vigor, Fuerza, Agilidad, Aceite de reserva, Codicia, Saber |
 | Enemigos | Fuego fatuo, Lobo hueco, Espantajo, Ánima en pena, Bruja del pantano, Raizón |
 | Jefes | Guardián de musgo y El Ciervo de Ceniza |
 
@@ -45,9 +50,13 @@ npm run build      # versión de producción en dist/
 Parámetros útiles en el servidor local:
 
 - `/?galeria` muestra todo el arte ampliado.
-- `/?jugar&semilla=7&desde=290` empieza una partida directamente, con una semilla fija y en un segundo concreto de la noche, para probar los jefes.
+- `/?jugar&semilla=7&desde=290&monedas=100` empieza una partida directamente, con una semilla fija, en un segundo concreto de la noche y con monedas, para probar los jefes y al mercader.
+- `/?jugar&bot&rapido=6` deja jugar a un bot a 6 veces la velocidad normal.
 
-`node scripts/probar.mjs 30` juega una partida automática de 30 segundos en Chrome y guarda capturas en `test-results/`.
+Herramientas de prueba:
+
+- `node scripts/simular.mjs 3 6` simula 3 noches con el bot y resume hasta dónde llega en cada minuto. Sirve para ajustar la dificultad.
+- `node scripts/capturas.mjs [escritorio|movil]` guarda capturas de las pantallas principales en `test-results/`.
 
 ## Desarrollo con IA
 

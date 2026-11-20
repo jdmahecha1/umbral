@@ -25,8 +25,8 @@ export const ENEMIGOS: Record<TipoEnemigo, DefEnemigo> = {
   anima: { tipo: 'anima', nombre: 'Ánima en pena', vida: 20, velocidad: 44, dano: 9, xp: 3, radio: 5, peso: 0.9, luz: 10 },
   bruja: { tipo: 'bruja', nombre: 'Bruja del pantano', vida: 28, velocidad: 33, dano: 9, xp: 4, radio: 6, peso: 0.7 },
   raizon: { tipo: 'raizon', nombre: 'Raizón', vida: 130, velocidad: 21, dano: 15, xp: 10, radio: 9, peso: 0.25 },
-  guardian: { tipo: 'guardian', nombre: 'Guardián de musgo', vida: 1100, velocidad: 24, dano: 18, xp: 40, radio: 13, peso: 0.05, jefe: true },
-  ciervo: { tipo: 'ciervo', nombre: 'El Ciervo de Ceniza', vida: 5200, velocidad: 30, dano: 22, xp: 0, radio: 13, peso: 0, jefe: true, luz: 30 },
+  guardian: { tipo: 'guardian', nombre: 'Guardián de musgo', vida: 1200, velocidad: 24, dano: 18, xp: 40, radio: 13, peso: 0.05, jefe: true },
+  ciervo: { tipo: 'ciervo', nombre: 'El Ciervo de Ceniza', vida: 8000, velocidad: 30, dano: 22, xp: 0, radio: 13, peso: 0, jefe: true, luz: 30 },
 };
 
 /** Duración de la partida en segundos: al llegar aparece el jefe final. */

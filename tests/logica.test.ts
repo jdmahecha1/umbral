@@ -3,7 +3,7 @@ import { crearRng, entre, elegirPonderado, mezclar, hash2 } from '../src/logic/r
 import { Rejilla } from '../src/logic/rejilla';
 import { xpParaNivel, sumarXp } from '../src/logic/experiencia';
 import { MAX_ARMAS, MAX_PASIVAS, candidatas, ofrecer, aplicar, atributos, danoRecibido, inventarioInicial } from '../src/logic/mejoras';
-import { statsHoz, statsDagas, statsFarol, statsRunas, statsCampana } from '../src/logic/armas';
+import { statsHoz, statsDagas, statsLlamarada, statsRunas, statsCampana } from '../src/logic/armas';
 import { DURACION, MINIJEFE_EN, EVENTOS, eventosEntre, pesos, ritmo } from '../src/logic/enemigos';
 import { AJUSTES_INICIALES, RECORDS_VACIOS, leerAjustes, leerRecords, guardarResultado, formatoTiempo } from '../src/logic/guardado';
 
@@ -118,7 +118,7 @@ describe('mejoras', () => {
 
 describe('armas', () => {
   it('no reduce el daño al subir de nivel en ninguna arma', () => {
-    const tablas = [statsHoz, statsDagas, statsFarol, statsRunas, statsCampana];
+    const tablas = [statsHoz, statsDagas, statsLlamarada, statsRunas, statsCampana];
     for (const stats of tablas) {
       for (let nivel = 1; nivel < 5; nivel++) {
         expect(stats(nivel + 1).dano).toBeGreaterThanOrEqual(stats(nivel).dano);
@@ -127,7 +127,7 @@ describe('armas', () => {
   });
 
   it('acota los niveles fuera del rango', () => {
-    for (const stats of [statsHoz, statsDagas, statsFarol, statsRunas, statsCampana]) {
+    for (const stats of [statsHoz, statsDagas, statsLlamarada, statsRunas, statsCampana]) {
       expect(stats(0)).toEqual(stats(1));
       expect(stats(99)).toEqual(stats(5));
       expect(stats(-3)).toEqual(stats(1));
@@ -216,5 +216,23 @@ describe('aparicion', () => {
     const d = direccionHacia(0, 0, 3, 4);
     expect(d.x).toBeCloseTo(0.6);
     expect(d.y).toBeCloseTo(0.8);
+  });
+});
+
+describe('textos de las mejoras', () => {
+  it('cada cambio de arma muestra su propio valor anterior', async () => {
+    const { cambios } = await import('../src/logic/mejoras');
+    expect(cambios('hoz', 3)).toEqual(['Espera entre tajos: 0,55 s → 0,5 s', 'Ahora también golpea a los enemigos a tu espalda']);
+    expect(cambios('dagas', 2)).toEqual(['Dagas por ataque: 1 → 2', 'Enemigos que atraviesa cada daga: 0 → 1']);
+    expect(cambios('hoz', 1)).toEqual(['Daño: 12', 'Alcance: corto', 'Espera entre tajos: 0,55 s']);
+    expect(cambios('hoz', 4)).toEqual(['Alcance: corto → medio']);
+  });
+
+  it('las pasivas muestran el total antes y después', async () => {
+    const { cambios } = await import('../src/logic/mejoras');
+    expect(cambios('botas', 1)).toEqual(['Velocidad: +8 %']);
+    expect(cambios('botas', 2)).toEqual(['Velocidad: +8 % → +16 %']);
+    expect(cambios('coraza', 3)).toEqual(['Daño que bloqueas en cada golpe: 2 → 3']);
+    expect(cambios('mecha', 1)).toEqual(['El aceite dura: +18 %', 'Ves más lejos: +8 %']);
   });
 });

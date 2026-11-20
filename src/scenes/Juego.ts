@@ -2,19 +2,45 @@ import Phaser from 'phaser';
 import { CSS } from '../art/paleta';
 import type { Sonido } from '../audio/sonido';
 import { Arsenal } from '../game/arsenal';
+import { Bot } from '../game/bot';
 import type { Controles } from '../game/controles';
 import { Efectos } from '../game/efectos';
-import { Horda } from '../game/horda';
+import { Horda, type Enemigo } from '../game/horda';
 import { ACEITE_MAX, Jugador } from '../game/jugador';
 import { Mundo } from '../game/mundo';
 import { Objetos, type TipoObjeto } from '../game/objetos';
 import { Oscuridad } from '../game/oscuridad';
+import { bonosAltar, brasasGanadas, guardarAltar, leerAltar } from '../logic/altar';
 import { anillo, enjambre, puntoFueraDeVista } from '../logic/aparicion';
 import { ENEMIGOS, MAX_VIVOS, elegirTipo, eventosEntre, ritmo, type TipoEnemigo } from '../logic/enemigos';
 import { sumarXp, xpParaNivel } from '../logic/experiencia';
 import { guardarResultado, type Records, type Resultado } from '../logic/guardado';
-import { aplicar, atributos, inventarioInicial, ofrecer, type IdMejora, type Inventario, type Opcion } from '../logic/mejoras';
+import {
+  ARMAS,
+  aplicar,
+  atributos,
+  inventarioInicial,
+  maxNivel,
+  ofrecer,
+  type Extras,
+  type IdArma,
+  type IdMejora,
+  type Inventario,
+  type Opcion,
+} from '../logic/mejoras';
 import { crearRng, type Rng } from '../logic/rng';
+import {
+  ARTICULOS,
+  AVISO_TREGUA,
+  PROB_ORO,
+  TREGUAS,
+  ofrecerArticulos,
+  precio,
+  precioCambiar,
+  probMoneda,
+  type IdArticulo,
+  type IdReliquia,
+} from '../logic/tienda';
 
 export interface Estado {
   tiempo: number;
@@ -25,7 +51,10 @@ export interface Estado {
   xp: number;
   xpNecesaria: number;
   bajas: number;
+  monedas: number;
   inventario: Inventario;
+  cargas: Partial<Record<IdArma, number>>;
+  reliquias: IdReliquia[];
   jefe: { nombre: string; vida: number; vidaMax: number } | null;
 }
 
@@ -33,6 +62,14 @@ export interface Fin {
   resultado: Resultado;
   nuevos: (keyof Records)[];
   records: Records;
+  brasas: number;
+  brasasTotales: number;
+}
+
+export interface Tienda {
+  ofertas: { id: IdArticulo; precio: number }[];
+  monedas: number;
+  precioCambiar: number;
 }
 
 /** Zoom para que se vean unas 230 unidades de alto (o 170 de ancho en móvil vertical). */
@@ -51,14 +88,24 @@ export class Juego extends Phaser.Scene {
   private objetos!: Objetos;
   private arsenal!: Arsenal;
   controles: Controles | null = null;
+  /** Solo para medir la dificultad: un jugador automático y cuántos pasos simular por fotograma. */
+  private bot: Bot | null = null;
+  private pasos = 1;
 
   private inv!: Inventario;
+  private extras!: { altar: Extras['altar']; reliquias: Set<IdReliquia> };
   private progreso = { nivel: 1, xp: 0 };
   private tiempo = 0;
   private bajas = 0;
+  private monedas = 0;
   private acumulador = 0;
   private pendientes = 0;
+  private amuletoUsado = false;
+  private tienda = { ofertas: [] as IdArticulo[], cambios: 0, compradas: {} as Partial<Record<IdArticulo, number>> };
+  /** Diario de la partida (lo lee el bot de pruebas). */
+  registro: string[] = [];
   eligiendo = false;
+  enTienda = false;
   pausado = false;
   terminado = false;
 
@@ -66,21 +113,34 @@ export class Juego extends Phaser.Scene {
     super('Juego');
   }
 
-  create(datos: { semilla?: number; desde?: number }): void {
+  create(datos: { semilla?: number; desde?: number; monedas?: number; bot?: boolean; rapido?: number }): void {
     const semilla = datos.semilla ?? Math.floor(Math.random() * 2 ** 31);
     this.rng = crearRng(semilla);
     this.sonido = this.registry.get('sonido') as Sonido;
-    Object.assign(this, { tiempo: 0, bajas: 0, acumulador: 0, pendientes: 0, eligiendo: false, pausado: false, terminado: false });
+    Object.assign(this, {
+      bajas: 0,
+      acumulador: 0,
+      pendientes: 0,
+      eligiendo: false,
+      enTienda: false,
+      pausado: false,
+      terminado: false,
+      amuletoUsado: false,
+    });
     this.tiempo = Math.max(0, datos.desde ?? 0);
+    this.monedas = Math.max(0, datos.monedas ?? 0);
     this.progreso = { nivel: 1, xp: 0 };
     this.inv = inventarioInicial();
+    this.extras = { altar: bonosAltar(leerAltar().niveles), reliquias: new Set() };
+    this.tienda = { ofertas: [], cambios: 0, compradas: {} };
+    this.registro = [];
     this.time.paused = false;
 
     this.cameras.main.resetFX();
     this.ajustarZoom();
     this.mundo = new Mundo(this, semilla);
     this.efectos = new Efectos(this);
-    this.jugador = new Jugador(this, atributos(this.inv));
+    this.jugador = new Jugador(this, atributos(this.inv, this.extras));
     this.horda = new Horda(this, this.efectos);
     this.horda.alGolpear(() => this.sonido.reproducir('golpe', 0.45));
     this.objetos = new Objetos(this);
@@ -88,6 +148,8 @@ export class Juego extends Phaser.Scene {
     this.arsenal.sincronizar(this.inv);
     this.oscuridad = new Oscuridad(this);
     this.cameras.main.centerOn(0, -8);
+    this.bot = datos.bot ? new Bot(this.jugador, this.horda, this.objetos) : null;
+    this.pasos = Math.max(1, Math.min(8, Math.floor(datos.rapido ?? 1)));
 
     this.scale.on('resize', this.alRedimensionar, this);
     this.game.events.on(Phaser.Core.Events.BLUR, this.alPerderFoco, this);
@@ -103,7 +165,7 @@ export class Juego extends Phaser.Scene {
   }
 
   private alPerderFoco(): void {
-    if (!this.terminado && !this.eligiendo) this.pausar(true);
+    if (!this.terminado && !this.eligiendo && !this.enTienda) this.pausar(true);
   }
 
   private ajustarZoom(): void {
@@ -121,14 +183,16 @@ export class Juego extends Phaser.Scene {
       xp: this.progreso.xp,
       xpNecesaria: xpParaNivel(this.progreso.nivel),
       bajas: this.bajas,
+      monedas: this.monedas,
       inventario: this.inv,
+      cargas: this.arsenal?.cargas() ?? {},
+      reliquias: [...this.extras.reliquias],
       jefe: j ? { nombre: j.def.nombre, vida: Math.max(0, j.vida), vidaMax: j.vidaMax } : null,
     };
   }
 
-  pausar(on: boolean): void {
-    if (this.terminado || this.eligiendo) return;
-    this.pausado = on;
+  /** Congela o reanuda todo lo que se mueve (simulación, tweens, animaciones y temporizadores). */
+  private congelar(on: boolean): void {
     this.controles?.bloquear(on);
     this.time.paused = on;
     if (on) {
@@ -138,7 +202,18 @@ export class Juego extends Phaser.Scene {
       this.tweens.resumeAll();
       this.anims.resumeAll();
     }
+  }
+
+  pausar(on: boolean): void {
+    if (this.terminado || this.eligiendo || this.enTienda) return;
+    this.pausado = on;
+    this.congelar(on);
     this.events.emit('pausa', on);
+  }
+
+  private recalcular(): void {
+    this.jugador.setAtributos(atributos(this.inv, this.extras));
+    this.arsenal.sincronizar(this.inv);
   }
 
   /** El jugador eligió una mejora en el panel de subida de nivel. */
@@ -147,29 +222,116 @@ export class Juego extends Phaser.Scene {
     aplicar(this.inv, id);
     if (id === 'pan') this.jugador.curar(30);
     if (id === 'aceite') this.jugador.aceite = ACEITE_MAX;
-    this.jugador.setAtributos(atributos(this.inv));
-    this.arsenal.sincronizar(this.inv);
+    this.recalcular();
     this.pendientes--;
     this.eligiendo = false;
-    this.controles?.bloquear(false);
-    this.time.paused = false;
-    this.tweens.resumeAll();
-    this.anims.resumeAll();
+    this.congelar(false);
   }
 
   private abrirEleccion(): void {
     this.eligiendo = true;
-    this.controles?.bloquear(true);
-    this.time.paused = true;
-    this.tweens.pauseAll();
-    this.anims.pauseAll();
+    this.congelar(true);
     const opciones: Opcion[] = ofrecer(this.inv, this.rng, 3);
+    if (this.bot) {
+      // Prefiere armas nuevas o mejoras de armas; si no, la primera.
+      const op = opciones.find((o) => o.tipo === 'arma') ?? opciones[0]!;
+      // Directo: con la escena congelada, un temporizador no llegaría a dispararse.
+      this.elegir(op.id);
+      return;
+    }
     this.sonido.reproducir('nivel');
     this.events.emit('elegir', opciones);
   }
 
+  // ── La tregua del mercader ─────────────────────────────────────
+
+  private puedeForjar(): boolean {
+    return (Object.entries(this.inv.armas) as [IdArma, number][]).some(([id, n]) => n < maxNivel(id));
+  }
+
+  get datosTienda(): Tienda {
+    return {
+      ofertas: this.tienda.ofertas.map((id) => ({ id, precio: precio(id, this.tienda.compradas[id] ?? 0) })),
+      monedas: this.monedas,
+      precioCambiar: precioCambiar(this.tienda.cambios),
+    };
+  }
+
+  private abrirTienda(): void {
+    this.enTienda = true;
+    this.congelar(true);
+    this.tienda.cambios = 0;
+    this.tienda.ofertas = ofrecerArticulos(this.rng, this.extras.reliquias, this.puedeForjar());
+    if (this.bot) {
+      // Compra reliquias que alcance (las más caras primero) y se va.
+      for (const o of [...this.datosTienda.ofertas].sort((a, b) => b.precio - a.precio)) {
+        if (ARTICULOS[o.id].tipo === 'reliquia' && o.precio <= this.monedas) this.comprar(o.id);
+      }
+      this.registro.push(`tienda ${Math.round(this.tiempo)}s: ${[...this.extras.reliquias].join(",") || "nada"} (quedan ${this.monedas})`);
+      this.salirTienda();
+      return;
+    }
+    this.sonido.reproducir('cofre');
+    this.events.emit('tienda', this.datosTienda);
+  }
+
+  /** Compra un artículo. Devuelve un mensaje para la interfaz. */
+  comprar(id: IdArticulo): { ok: boolean; mensaje: string } {
+    if (!this.enTienda || !this.tienda.ofertas.includes(id)) return { ok: false, mensaje: '' };
+    const p = precio(id, this.tienda.compradas[id] ?? 0);
+    if (this.monedas < p) return { ok: false, mensaje: `Te faltan ${p - this.monedas} monedas` };
+    const art = ARTICULOS[id];
+    let mensaje = `Compraste: ${art.nombre}`;
+    if (id === 'elixir') {
+      this.jugador.curar(this.jugador.atrib.vidaMax);
+      this.jugador.aceite = ACEITE_MAX;
+    } else if (id === 'pergamino') {
+      this.pendientes++;
+      mensaje = 'Al salir de la tienda elegirás una mejora';
+    } else if (id === 'forja') {
+      const armas = (Object.entries(this.inv.armas) as [IdArma, number][]).filter(([a, n]) => n < maxNivel(a));
+      if (armas.length === 0) return { ok: false, mensaje: 'Tus armas ya están al máximo' };
+      const [arma] = armas[Math.floor(this.rng() * armas.length)]!;
+      aplicar(this.inv, arma);
+      mensaje = `${ARMAS[arma].nombre} sube al nivel ${this.inv.armas[arma]}`;
+    } else {
+      this.extras.reliquias.add(id as IdReliquia);
+    }
+    this.monedas -= p;
+    this.tienda.compradas[id] = (this.tienda.compradas[id] ?? 0) + 1;
+    // Las reliquias desaparecen del mostrador; los consumibles se quedan (algo más caros).
+    if (art.tipo === 'reliquia' || (id === 'forja' && !this.puedeForjar())) this.tienda.ofertas = this.tienda.ofertas.filter((o) => o !== id);
+    this.recalcular();
+    this.sonido.reproducir('aceite');
+    return { ok: true, mensaje };
+  }
+
+  cambiarArticulos(): { ok: boolean; mensaje: string } {
+    const p = precioCambiar(this.tienda.cambios);
+    if (this.monedas < p) return { ok: false, mensaje: `Te faltan ${p - this.monedas} monedas` };
+    this.monedas -= p;
+    this.tienda.cambios++;
+    this.tienda.ofertas = ofrecerArticulos(this.rng, this.extras.reliquias, this.puedeForjar());
+    return { ok: true, mensaje: 'Nuevos objetos a la venta' };
+  }
+
+  salirTienda(): void {
+    if (!this.enTienda) return;
+    this.enTienda = false;
+    this.congelar(false);
+    // Un respiro al volver: los enemigos siguen donde estaban.
+    this.jugador.proteger(1.5);
+    this.events.emit('aviso', 'El mercader se marcha');
+  }
+
+  // ── Bucle principal ────────────────────────────────────────────
+
   update(_t: number, deltaMs: number): void {
-    if (this.terminado || this.pausado || this.eligiendo) return;
+    for (let i = 0; i < this.pasos; i++) this.paso(deltaMs, i === this.pasos - 1);
+  }
+
+  private paso(deltaMs: number, dibujar: boolean): void {
+    if (this.terminado || this.pausado || this.eligiendo || this.enTienda) return;
     if (this.pendientes > 0) {
       this.abrirEleccion();
       return;
@@ -179,28 +341,77 @@ export class Juego extends Phaser.Scene {
     this.tiempo += dt;
     const j = this.jugador;
 
-    const v = this.controles?.vector() ?? { x: 0, y: 0 };
-    j.actualizar(dt, v.x, v.y);
+    this.bot?.actualizar(dt);
+    const control = this.bot ?? this.controles;
+    const v = control?.vector() ?? { x: 0, y: 0 };
+    const atacando = control?.atacando() ?? false;
+    const angulo = this.anguloApunte();
+    if (atacando) j.mirando = Math.cos(angulo) >= 0 ? 1 : -1;
+    j.actualizar(dt, v.x, v.y, atacando);
     const cam = this.cameras.main;
     const k = 1 - Math.pow(0.0005, dt);
-    cam.centerOn(
-      Phaser.Math.Linear(cam.midPoint.x, j.x, k),
-      Phaser.Math.Linear(cam.midPoint.y, j.y - 8, k),
-    );
+    cam.centerOn(Phaser.Math.Linear(cam.midPoint.x, j.x, k), Phaser.Math.Linear(cam.midPoint.y, j.y - 8, k));
     this.mundo.actualizar();
 
     this.aparecer(dt, antes);
-    this.horda.actualizar(dt, j, (d) => {
+    this.horda.actualizar(dt, j, (d, quien) => this.alRecibirGolpe(d, quien));
+    this.arsenal.actualizar(dt, atacando, angulo);
+    this.procesarMuertes();
+    this.objetos.actualizar(dt, j, (tipo, valor, x, y) => this.recoger(tipo, valor, x, y));
+    if (dibujar) this.dibujarLuces();
+
+    for (const t of TREGUAS) {
+      if (antes < t - AVISO_TREGUA && this.tiempo >= t - AVISO_TREGUA) this.events.emit('aviso', 'El mercader llegará en 10 segundos');
+      if (antes < t && this.tiempo >= t) {
+        this.abrirTienda();
+        return;
+      }
+    }
+
+    if (j.muerto) {
+      if (this.extras.reliquias.has('amuleto') && !this.amuletoUsado) this.revivir();
+      else this.terminar(false);
+    }
+  }
+
+  /** Ángulo de ataque: hacia el ratón; sin ratón, hacia el enemigo más cercano o hacia donde miras. */
+  private anguloApunte(): number {
+    const j = this.jugador;
+    const cy = j.y - 7;
+    const p = (this.bot ?? this.controles)?.apunte();
+    if (p) return Math.atan2(p.y - cy, p.x - j.x);
+    const e = this.horda.masCercano(j.x, j.y, 170);
+    if (e) return Math.atan2(e.y - 6 - cy, e.x - j.x);
+    return Math.hypot(j.dirX, j.dirY) > 0.1 ? Math.atan2(j.dirY, j.dirX) : j.mirando > 0 ? 0 : Math.PI;
+  }
+
+  private alRecibirGolpe(d: number, quien?: Enemigo): void {
+    const j = this.jugador;
+    if (j.esquivo) {
+      j.esquivo = false;
+      this.efectos.aviso(j.x, j.y - 16, 'esquivado', CSS.espectro);
+    } else {
       this.sonido.reproducir('dano');
       this.efectos.numero(j.x, j.y - 16, d, CSS.sangre);
       this.efectos.sacudir(0.003, 90);
-    });
-    this.arsenal.actualizar(dt);
-    this.procesarMuertes();
-    this.objetos.actualizar(dt, j, (tipo, valor, x, y) => this.recoger(tipo, valor, x, y));
-    this.dibujarLuces();
+    }
+    if (quien && j.atrib.espinas > 0) this.horda.herir(quien, j.atrib.espinas, (quien.x - j.x) * 2, (quien.y - j.y) * 2, CSS.gris);
+  }
 
-    if (j.muerto) this.terminar(false);
+  private revivir(): void {
+    this.amuletoUsado = true;
+    this.extras.reliquias.delete('amuleto');
+    this.recalcular();
+    const j = this.jugador;
+    j.revivir();
+    // Al levantarse, una onda aparta a los que lo rodeaban.
+    this.horda.enCirculo(j.x, j.y - 6, 70, (e) => {
+      const a = Math.atan2(e.y - j.y, e.x - j.x);
+      this.horda.herir(e, 1, Math.cos(a) * 220, Math.sin(a) * 220);
+    });
+    this.cameras.main.flash(500, 255, 215, 122);
+    this.sonido.reproducir('nivel');
+    this.events.emit('aviso', '¡El amuleto te devolvió a la vida!');
   }
 
   private vista() {
@@ -256,6 +467,7 @@ export class Juego extends Phaser.Scene {
   private procesarMuertes(): void {
     // Incluye las muertes de golpes programados fuera del bucle (el tajo trasero de la hoz).
     const muertes = this.horda.muertes.splice(0);
+    const codicia = this.jugador.atrib.monedas;
     for (const m of muertes) {
       const def = m.e.def;
       this.bajas++;
@@ -265,9 +477,12 @@ export class Juego extends Phaser.Scene {
       }
       if (def.tipo === 'guardian') {
         this.objetos.soltar('cofre', m.x, m.y);
+        for (let i = 0; i < 5; i++) this.objetos.soltar('moneda', m.x + (i - 2) * 6, m.y + 6, 5);
         this.sonido.intensidad(0.45);
       }
       if (def.xp > 0) this.objetos.soltar('gema', m.x + (this.rng() - 0.5) * 4, m.y, def.xp);
+      if (this.rng() < PROB_ORO * codicia) this.objetos.soltar('moneda', m.x - 3, m.y + 2, 5);
+      else if (this.rng() < probMoneda(def.xp, codicia)) this.objetos.soltar('moneda', m.x - 3, m.y + 2, 1);
       // Más aceite cuando el farol está bajo: la luz es tensa, no imposible.
       const probAceite = this.jugador.aceite < 30 ? 0.06 : 0.025;
       if (this.rng() < probAceite) this.objetos.soltar('aceite', m.x + 4, m.y);
@@ -280,8 +495,11 @@ export class Juego extends Phaser.Scene {
   private recoger(tipo: TipoObjeto, valor: number, x: number, y: number): void {
     const j = this.jugador;
     if (tipo === 'gema') {
-      this.pendientes += sumarXp(this.progreso, valor);
+      this.pendientes += sumarXp(this.progreso, valor * j.atrib.xp);
       this.sonido.reproducir('gema', 0.5);
+    } else if (tipo === 'moneda') {
+      this.monedas += valor;
+      this.sonido.reproducir('gema', 0.35);
     } else if (tipo === 'aceite') {
       j.aceite = Math.min(ACEITE_MAX, j.aceite + 40);
       this.sonido.reproducir('aceite');
@@ -320,9 +538,15 @@ export class Juego extends Phaser.Scene {
     this.sonido.intensidad(0.2);
     const resultado: Resultado = { tiempo: this.tiempo, nivel: this.progreso.nivel, bajas: this.bajas, victoria };
     const { records, nuevos } = guardarResultado(resultado);
+    // Las brasas se guardan para siempre: se gastan en el Altar del menú.
+    const brasas = brasasGanadas(resultado);
+    const altar = leerAltar();
+    altar.brasas += brasas;
+    guardarAltar(altar);
     if (victoria) this.cameras.main.flash(1200, 255, 215, 122);
     else this.cameras.main.fade(1400, 7, 5, 12);
-    this.time.delayedCall(victoria ? 900 : 1100, () => this.events.emit('fin', { resultado, nuevos, records } satisfies Fin));
+    const fin: Fin = { resultado, nuevos, records, brasas, brasasTotales: altar.brasas };
+    this.time.delayedCall(victoria ? 900 : 1100, () => this.events.emit('fin', fin));
   }
 
   private limpiar(): void {
