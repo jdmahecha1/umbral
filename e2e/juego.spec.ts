@@ -148,8 +148,11 @@ test('en el celular, el dedo izquierdo mueve y el derecho ataca', async ({ page 
 });
 
 test('el mercader llega, vende y deja seguir la noche', async ({ page }) => {
-  await page.goto('/?jugar&semilla=3&desde=160&monedas=200');
-  await expect.poll(() => page.evaluate(() => (window as any).__umbral.scene.getScene('Juego').enTienda)).toBe(true);
+  // Empieza a segundo y medio de que llegue el mercader (segundo 165): en el CI la partida avanza despacio.
+  await page.goto('/?jugar&semilla=3&desde=163.5&monedas=200');
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__umbral.scene.getScene('Juego').enTienda), { timeout: 45_000 })
+    .toBe(true);
   const r = await page.evaluate(() => {
     const j = (window as any).__umbral.scene.getScene('Juego');
     const antes = j.estado.monedas;
