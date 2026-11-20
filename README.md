@@ -58,6 +58,10 @@ Herramientas de prueba:
 - `node scripts/simular.mjs 3 6` simula 3 noches con el bot y resume hasta dónde llega en cada minuto. Sirve para ajustar la dificultad.
 - `node scripts/capturas.mjs [escritorio|movil]` guarda capturas de las pantallas principales en `test-results/`.
 
+## Colaborar
+
+¿Quieres ayudar? Lee [CONTRIBUIR.md](CONTRIBUIR.md): cómo instalarlo, cómo probarlo y cómo se publican los cambios.
+
 ## Desarrollo con IA
 
 Este proyecto se desarrolló con ayuda de herramientas de inteligencia artificial: Claude (Anthropic) como asistente principal de programación, y Gemini y Codex para borradores, pruebas y revisiones de código. Todo lo que propusieron se revisó, se probó y se corrigió antes de integrarlo; el diseño del juego, las decisiones y la dirección del proyecto son míos.

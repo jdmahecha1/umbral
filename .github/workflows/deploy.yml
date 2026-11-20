@@ -1,7 +1,12 @@
 name: Publicar en GitHub Pages
 
+# Solo se publica cuando el CI (pruebas unitarias, compilación y pruebas de
+# punta a punta) termina bien después de un push a main. Si alguien sube algo
+# que rompe el juego, la web se queda con la última versión que funcionaba.
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -14,6 +19,13 @@ concurrency:
 
 jobs:
   build:
+    # Solo pushes a main de este mismo repositorio con el CI en verde (nunca PR de forks).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -21,13 +33,14 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # Publica exactamente la versión que pasó el CI.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm test
       - run: npm run build
         env:
           BASE_PATH: /umbral/
