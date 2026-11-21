@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { leerAjustes } from '../logic/guardado';
 
 const RADIO_JOYSTICK = 46;
 const ZONA_MUERTA = 0.15;
@@ -31,6 +32,8 @@ export class Controles {
   private ratonY = -1;
   private ratonUsado = false;
   private tactil = false;
+  /** Opción de ajustes: las armas atacan solas hacia donde se apunta. */
+  private autoataque = false;
 
   constructor(
     private readonly escena: Phaser.Scene,
@@ -46,6 +49,7 @@ export class Controles {
     }
     this.capaUI.input.mouse?.disableContextMenu();
     this.tactil = this.capaUI.sys.game.device.input.touch;
+    this.autoataque = leerAjustes().autoataque;
 
     this.base = capaUI.add.graphics().setDepth(20000).setVisible(false);
     this.mando = capaUI.add.graphics().setDepth(20000).setVisible(false);
@@ -76,7 +80,8 @@ export class Controles {
     this.boton.fillStyle(0x0b0a12, pulsado ? 0.55 : 0.35).fillCircle(x, y, r);
     this.boton.lineStyle(Math.max(2, Math.round(r / 14)), pulsado ? 0xffd77a : 0xf2eee3, pulsado ? 0.9 : 0.45).strokeCircle(x, y, r);
     this.botonIcono.setPosition(x, y).setScale((r * 1.1) / 12).setAlpha(pulsado ? 1 : 0.8);
-    const visible = this.tactil && !this.bloqueado;
+    // Con el ataque automático no hace falta botón: toda la pantalla sirve para moverse.
+    const visible = this.tactil && !this.bloqueado && !this.autoataque;
     this.boton.setVisible(visible);
     this.botonIcono.setVisible(visible);
   }
@@ -92,7 +97,7 @@ export class Controles {
     if (this.capaUI.input.hitTestPointer(p).length > 0) return;
     if (p.wasTouch) {
       this.tactil = true;
-      if (this.sobreBoton(p) || p.x > this.capaUI.scale.width * 0.5) {
+      if (!this.autoataque && (this.sobreBoton(p) || p.x > this.capaUI.scale.width * 0.5)) {
         if (this.dedoAtacar === null) this.dedoAtacar = p.id;
       } else if (this.dedoMover === null) {
         this.dedoMover = p.id;
@@ -189,6 +194,7 @@ export class Controles {
   /** ¿Está el jugador atacando ahora? */
   atacando(): boolean {
     if (this.bloqueado) return false;
+    if (this.autoataque) return true;
     return this.ratonAtacando || this.dedoAtacar !== null || this.espacio?.isDown === true;
   }
 
@@ -200,6 +206,11 @@ export class Controles {
     if (!this.ratonUsado || this.dedoAtacar !== null) return null;
     const p = this.escena.cameras.main.getWorldPoint(this.ratonX, this.ratonY);
     return { x: p.x, y: p.y };
+  }
+
+  setAutoataque(on: boolean): void {
+    this.autoataque = on;
+    this.dibujar();
   }
 
   get usandoTactil(): boolean {

@@ -3,11 +3,14 @@ import { COLOR, CSS } from '../art/paleta';
 import type { Sonido } from '../audio/sonido';
 import { Controles } from '../game/controles';
 import { DURACION } from '../logic/enemigos';
-import { formatoTiempo, guardarAjustes, leerAjustes } from '../logic/guardado';
+import { formatoTiempo, guardarAjustes, leerAjustes, leerRecords } from '../logic/guardado';
 import type { IdArma, IdMejora, Opcion } from '../logic/mejoras';
 import { ARTICULOS, type IdArticulo } from '../logic/tienda';
 import type { Estado, Fin, Juego, Tienda } from './Juego';
-import { boton, navegarConTeclado, panel, texto, unidad, type Boton } from './ui';
+import { boton, navegarConTeclado, panel, texto, unidad, type Boton, type Guardia } from './ui';
+
+/** Tiempo en que un panel recién abierto no acepta clics ni teclas (evita elegir sin querer). */
+const BLOQUEO_MS = 700;
 
 /** Mira pixelada para apuntar con el ratón. */
 const MIRA =
@@ -37,6 +40,15 @@ export class Hud extends Phaser.Scene {
   private capa: Phaser.GameObjects.Container | null = null;
   private soltarTeclado: (() => void) | null = null;
   private avisoAceite = false;
+  /** Momento (performance.now) en que se abrió el panel actual. */
+  private abiertaEn = 0;
+
+  /**
+   * Un clic cuenta solo si el panel lleva abierto un momento y si el botón se
+   * presionó DESPUÉS de abrirse: soltar el clic con el que se venía atacando no elige nada.
+   */
+  private readonly guardia: Guardia = (p) =>
+    performance.now() - this.abiertaEn >= BLOQUEO_MS && (!p || p.downTime >= this.abiertaEn);
 
   constructor() {
     super('Hud');
@@ -88,6 +100,30 @@ export class Hud extends Phaser.Scene {
       this.input.setDefaultCursor('default');
     });
     this.colocar();
+    // En las primeras partidas se avisa de que existe el ataque automático.
+    if (!leerAjustes().autoataque && leerRecords().partidas < 3) {
+      const tactil = this.sys.game.device.input.touch;
+      this.time.delayedCall(2500, () =>
+        this.consejo(
+          tactil
+            ? 'Consejo: si no quieres tocar para atacar, activa el "Ataque automático" en la pausa (botón II).'
+            : 'Consejo: si no quieres hacer clic todo el rato, activa el "Ataque automático" en la pausa (Esc).',
+        ),
+      );
+    }
+  }
+
+  /** Mensaje breve en la parte baja de la pantalla que aparece y se desvanece solo. */
+  private consejo(msg: string): void {
+    const { width: w, height: h } = this.scale;
+    const u = this.u;
+    const t = texto(this, w / 2, h - 90 * u, msg, 12 * u, CSS.ambarClaro)
+      .setOrigin(0.5, 1)
+      .setWordWrapWidth(Math.min(w - 32, 520 * u), true)
+      .setAlign('center')
+      .setAlpha(0)
+      .setDepth(50);
+    this.tweens.add({ targets: t, alpha: 1, duration: 400, yoyo: true, hold: 6500, onComplete: () => t.destroy() });
   }
 
   private alternarPausa(): void {
@@ -241,6 +277,7 @@ export class Hud extends Phaser.Scene {
   private abrirCapa(): Phaser.GameObjects.Container {
     this.cerrarCapa();
     this.input.setDefaultCursor('default');
+    this.abiertaEn = performance.now();
     const { width: w, height: h } = this.scale;
     const velo = this.add.rectangle(0, 0, w, h, 0x07050c, 0.78).setOrigin(0).setInteractive();
     this.capa = this.add.container(0, 0, [velo]).setDepth(100);
@@ -258,7 +295,7 @@ export class Hud extends Phaser.Scene {
     w: number,
     datos: { icono: string; titulo: string; etiqueta: string; colorEtiqueta: string; que: string; detalle: string[]; numero?: number; apagada?: boolean },
     alPulsar: () => void,
-  ): { boton: Boton; alto: number } {
+  ): { boton: Boton; alto: number; grupo: Phaser.GameObjects.Container } {
     const u = this.u;
     const pad = 10 * u;
     const tx = x - w / 2 + 54 * u;
@@ -282,7 +319,8 @@ export class Hud extends Phaser.Scene {
     const piezas: Phaser.GameObjects.GameObject[] = [fondo, ic, titulo, etiqueta, que];
     if (detalle) piezas.push(detalle);
     if (datos.numero) piezas.push(texto(this, x - w / 2 + 5 * u, top + 3 * u, String(datos.numero), 9 * u, CSS.apagado));
-    capa.add(piezas);
+    const grupo = this.add.container(0, 0, piezas);
+    capa.add(grupo);
     if (datos.apagada) for (const p of piezas) (p as unknown as Phaser.GameObjects.Components.Alpha).setAlpha(0.55);
     const resaltar = (on: boolean) => {
       fondo.setStrokeStyle(Math.max(2, Math.round(2 * u)), on ? COLOR.ambar : COLOR.borde).setFillStyle(on ? 0x221c2c : COLOR.panel);
@@ -295,8 +333,10 @@ export class Hud extends Phaser.Scene {
     fondo.setInteractive({ useHandCursor: true });
     fondo.on('pointerover', () => resaltar(true));
     fondo.on('pointerout', () => resaltar(false));
-    fondo.on('pointerup', pulsar);
-    return { boton: { cont: capa, etiqueta: titulo, fondo, pulsar, resaltar }, alto };
+    fondo.on('pointerup', (p: Phaser.Input.Pointer) => {
+      if (this.guardia(p)) pulsar();
+    });
+    return { boton: { cont: capa, etiqueta: titulo, fondo, pulsar, resaltar }, alto, grupo };
   }
 
   private mostrarEleccion(opciones: Opcion[]): void {
@@ -311,10 +351,11 @@ export class Hud extends Phaser.Scene {
 
     let y = tituloY + 58 * u;
     const tarjetas: Boton[] = [];
+    const grupos: Phaser.GameObjects.Container[] = [];
     opciones.forEach((op, i) => {
       const etiqueta =
         op.tipo === 'consumible' ? 'Al momento' : op.nivel === 1 ? (op.tipo === 'arma' ? 'Arma nueva' : 'Nueva') : `Nivel ${op.nivel} de 5`;
-      const { boton: b, alto } = this.tarjeta(
+      const { boton: b, alto, grupo } = this.tarjeta(
         capa,
         w / 2,
         y,
@@ -326,14 +367,16 @@ export class Hud extends Phaser.Scene {
         },
       );
       tarjetas.push(b);
+      grupos.push(grupo);
       y += alto + sep;
     });
     // Si no cabe en pantallas muy bajas, se reduce todo el bloque.
     const alto = y - sep;
     if (alto > h - 8) capa.setScale((h - 8) / alto).setPosition((w - w * ((h - 8) / alto)) / 2, 0);
-    this.soltarTeclado = navegarConTeclado(this, tarjetas);
+    this.soltarTeclado = navegarConTeclado(this, tarjetas, 0, { guardia: this.guardia, espacio: false });
     const numeros = (ev: KeyboardEvent) => {
       const n = Number(ev.key);
+      if (ev.repeat || !this.guardia()) return;
       if (n >= 1 && n <= tarjetas.length) tarjetas[n - 1]!.pulsar();
     };
     this.input.keyboard?.on('keydown', numeros);
@@ -342,14 +385,33 @@ export class Hud extends Phaser.Scene {
       soltar();
       this.input.keyboard?.off('keydown', numeros);
     };
+    this.entrada(capa, grupos);
+  }
+
+  /**
+   * Las tarjetas entran deslizándose y medio apagadas; cuando ya se pueden elegir,
+   * se encienden. Así se ve que el panel acaba de aparecer y no se elige nada sin querer.
+   */
+  private entrada(capa: Phaser.GameObjects.Container, grupos: Phaser.GameObjects.Container[]): void {
     capa.setAlpha(0);
-    this.tweens.add({ targets: capa, alpha: 1, duration: 160 });
+    this.tweens.add({ targets: capa, alpha: 1, duration: 150 });
+    grupos.forEach((g, i) => {
+      g.setAlpha(0).setY(14 * this.u);
+      this.tweens.add({ targets: g, alpha: 0.45, y: 0, delay: 60 + i * 90, duration: 220, ease: 'Quad.Out' });
+    });
+    this.time.delayedCall(BLOQUEO_MS, () => {
+      if (!this.capa || this.capa !== capa) return;
+      for (const g of grupos) this.tweens.add({ targets: g, alpha: 1, duration: 140 });
+    });
   }
 
   // ── La tregua del mercader ─────────────────────────────────────
 
-  private mostrarTienda(datos: Tienda, mensaje = ''): void {
+  private mostrarTienda(datos: Tienda, mensaje = '', redibujar = false): void {
     const capa = this.abrirCapa();
+    // Tras una compra se redibuja: un bloqueo breve evita comprar dos veces con un doble clic.
+    if (redibujar) this.abiertaEn = performance.now() - BLOQUEO_MS + 250;
+    const gruposTienda: Phaser.GameObjects.Container[] = [];
     const { width: w, height: h } = this.scale;
     const u = this.u;
     const columnas = w >= 760 * Math.min(u, 1.6) ? 2 : 1;
@@ -381,7 +443,7 @@ export class Hud extends Phaser.Scene {
         altoFila = 0;
       }
       const alcanza = datos.monedas >= o.precio;
-      const { boton: b, alto } = this.tarjeta(
+      const { boton: b, alto, grupo } = this.tarjeta(
         capa,
         x0 + col * (anchoTarjeta + sep) + anchoTarjeta / 2,
         y,
@@ -398,6 +460,7 @@ export class Hud extends Phaser.Scene {
         () => this.comprar(o.id as IdArticulo),
       );
       elementos.push(b);
+      gruposTienda.push(grupo);
       altoFila = Math.max(altoFila, alto);
     });
     if (datos.ofertas.length === 0) {
@@ -409,26 +472,27 @@ export class Hud extends Phaser.Scene {
     capa.add(aviso);
     y += 24 * u;
     const anchoBoton = Math.min(anchoTotal, 280 * u);
-    const cambiar = boton(this, w / 2, y + 17 * u, anchoBoton, `Cambiar artículos (${datos.precioCambiar} monedas)`, () => this.cambiar(), u);
+    const cambiar = boton(this, w / 2, y + 17 * u, anchoBoton, `Cambiar artículos (${datos.precioCambiar} monedas)`, () => this.cambiar(), u, this.guardia);
     const seguir = boton(this, w / 2, y + 17 * u + 44 * u, anchoBoton, 'Seguir la noche', () => {
       this.cerrarCapa();
       this.juego.salirTienda();
-    }, u);
+    }, u, this.guardia);
     capa.add([cambiar.cont, seguir.cont]);
     elementos.push(cambiar, seguir);
     const altoTotal = y + 17 * u + 44 * u + 24 * u;
     if (altoTotal > h) capa.setScale(h / altoTotal).setPosition((w - w * (h / altoTotal)) / 2, 0);
-    this.soltarTeclado = navegarConTeclado(this, elementos, elementos.length - 1);
+    this.soltarTeclado = navegarConTeclado(this, elementos, elementos.length - 1, { guardia: this.guardia, espacio: false });
+    if (!redibujar) this.entrada(capa, gruposTienda);
   }
 
   private comprar(id: IdArticulo): void {
     const r = this.juego.comprar(id);
-    this.mostrarTienda(this.juego.datosTienda, r.mensaje);
+    this.mostrarTienda(this.juego.datosTienda, r.mensaje, true);
   }
 
   private cambiar(): void {
     const r = this.juego.cambiarArticulos();
-    this.mostrarTienda(this.juego.datosTienda, r.mensaje);
+    this.mostrarTienda(this.juego.datosTienda, r.mensaje, true);
   }
 
   // ── Pausa y final ──────────────────────────────────────────────
@@ -444,31 +508,40 @@ export class Hud extends Phaser.Scene {
     const sonido = this.registry.get('sonido') as Sonido;
     const ajustes = leerAjustes();
     const ancho = Math.min(w - 48, 260 * u);
-    capa.add(panel(this, w / 2, h / 2, ancho + 40 * u, 250 * u, u));
-    capa.add(texto(this, w / 2, h / 2 - 95 * u, 'Pausa', 24 * u, CSS.ambarClaro, 'titulo').setOrigin(0.5));
+    capa.add(panel(this, w / 2, h / 2, ancho + 40 * u, 300 * u, u));
+    capa.add(texto(this, w / 2, h / 2 - 120 * u, 'Pausa', 24 * u, CSS.ambarClaro, 'titulo').setOrigin(0.5));
+    const etiquetaAuto = () => `Ataque automático: ${ajustes.autoataque ? 'sí' : 'no'}`;
     const etiquetaSonido = () => `Sonido: ${ajustes.sonido ? 'sí' : 'no'}`;
     const etiquetaMusica = () => `Música: ${ajustes.musica ? 'sí' : 'no'}`;
     const b: Boton[] = [];
-    b.push(boton(this, w / 2, h / 2 - 45 * u, ancho, 'Continuar', () => this.juego.pausar(false), u));
+    b.push(boton(this, w / 2, h / 2 - 70 * u, ancho, 'Continuar', () => this.juego.pausar(false), u, this.guardia));
     b.push(
-      boton(this, w / 2, h / 2, ancho, etiquetaSonido(), () => {
+      boton(this, w / 2, h / 2 - 25 * u, ancho, etiquetaAuto(), () => {
+        ajustes.autoataque = !ajustes.autoataque;
+        guardarAjustes(ajustes);
+        this.juego.controles?.setAutoataque(ajustes.autoataque);
+        b[1]!.etiqueta.setText(etiquetaAuto());
+      }, u, this.guardia),
+    );
+    b.push(
+      boton(this, w / 2, h / 2 + 20 * u, ancho, etiquetaSonido(), () => {
         ajustes.sonido = !ajustes.sonido;
         sonido.setSonido(ajustes.sonido);
         guardarAjustes(ajustes);
-        b[1]!.etiqueta.setText(etiquetaSonido());
-      }, u),
+        b[2]!.etiqueta.setText(etiquetaSonido());
+      }, u, this.guardia),
     );
     b.push(
-      boton(this, w / 2, h / 2 + 45 * u, ancho, etiquetaMusica(), () => {
+      boton(this, w / 2, h / 2 + 65 * u, ancho, etiquetaMusica(), () => {
         ajustes.musica = !ajustes.musica;
         sonido.setMusica(ajustes.musica);
         guardarAjustes(ajustes);
-        b[2]!.etiqueta.setText(etiquetaMusica());
-      }, u),
+        b[3]!.etiqueta.setText(etiquetaMusica());
+      }, u, this.guardia),
     );
-    b.push(boton(this, w / 2, h / 2 + 90 * u, ancho, 'Abandonar', () => this.irAlMenu(), u));
+    b.push(boton(this, w / 2, h / 2 + 110 * u, ancho, 'Abandonar', () => this.irAlMenu(), u, this.guardia));
     for (const x of b) capa.add(x.cont);
-    this.soltarTeclado = navegarConTeclado(this, b);
+    this.soltarTeclado = navegarConTeclado(this, b, 0, { guardia: this.guardia, espacio: false });
   }
 
   private mostrarFin(fin: Fin): void {
@@ -509,11 +582,11 @@ export class Hud extends Phaser.Scene {
         .setAlign('center'),
     );
     const b = [
-      boton(this, w / 2, h / 2 + 92 * u, ancho - 60 * u, 'Otra noche', () => this.reiniciar(), u),
-      boton(this, w / 2, h / 2 + 136 * u, ancho - 60 * u, 'Menú', () => this.irAlMenu(), u),
+      boton(this, w / 2, h / 2 + 92 * u, ancho - 60 * u, 'Otra noche', () => this.reiniciar(), u, this.guardia),
+      boton(this, w / 2, h / 2 + 136 * u, ancho - 60 * u, 'Menú', () => this.irAlMenu(), u, this.guardia),
     ];
     for (const x of b) capa.add(x.cont);
-    this.soltarTeclado = navegarConTeclado(this, b);
+    this.soltarTeclado = navegarConTeclado(this, b, 0, { guardia: this.guardia, espacio: false });
     capa.setAlpha(0);
     this.tweens.add({ targets: capa, alpha: 1, duration: 400 });
   }

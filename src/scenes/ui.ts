@@ -38,8 +38,23 @@ export interface Boton {
   resaltar: (on: boolean) => void;
 }
 
+/**
+ * Decide si un clic, toque o tecla cuenta. Sirve para que un clic que venía de
+ * atacar no elija sin querer una mejora en un panel que acaba de abrirse.
+ */
+export type Guardia = (puntero?: Phaser.Input.Pointer) => boolean;
+
 /** Botón rectangular con borde, al estilo de los paneles del juego. */
-export function boton(scene: Phaser.Scene, x: number, y: number, ancho: number, contenido: string, alPulsar: () => void, u: number): Boton {
+export function boton(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  ancho: number,
+  contenido: string,
+  alPulsar: () => void,
+  u: number,
+  guardia?: Guardia,
+): Boton {
   const alto = Math.round(34 * u);
   const fondo = scene.add.rectangle(0, 0, ancho, alto, COLOR.panel).setStrokeStyle(Math.max(2, Math.round(2 * u)), COLOR.borde);
   const etiqueta = texto(scene, 0, 0, contenido, 14 * u, CSS.hueso, true).setOrigin(0.5);
@@ -56,7 +71,9 @@ export function boton(scene: Phaser.Scene, x: number, y: number, ancho: number, 
   fondo.setInteractive({ useHandCursor: true });
   fondo.on('pointerover', () => resaltar(true));
   fondo.on('pointerout', () => resaltar(false));
-  fondo.on('pointerup', pulsar);
+  fondo.on('pointerup', (p: Phaser.Input.Pointer) => {
+    if (!guardia || guardia(p)) pulsar();
+  });
   return { cont, etiqueta, fondo, pulsar, resaltar };
 }
 
@@ -72,19 +89,29 @@ export function panel(scene: Phaser.Scene, x: number, y: number, w: number, h: n
   return g;
 }
 
-/** Navegación con teclado entre botones: flechas, Tab y Enter. */
-export function navegarConTeclado(scene: Phaser.Scene, botones: Boton[], inicial = 0): () => void {
+/**
+ * Navegación con teclado entre botones: flechas, Tab y Enter (y espacio, salvo
+ * que se desactive). Las teclas mantenidas presionadas no cuentan.
+ */
+export function navegarConTeclado(
+  scene: Phaser.Scene,
+  botones: Boton[],
+  inicial = 0,
+  opciones: { guardia?: Guardia; espacio?: boolean } = {},
+): () => void {
   let foco = inicial;
   const pintar = () => botones.forEach((b, i) => b.resaltar(i === foco));
   pintar();
   const tecla = (ev: KeyboardEvent) => {
+    // Una tecla mantenida (por ejemplo, el espacio de atacar) repite el evento: se ignora.
+    if (ev.repeat) return;
     if (['ArrowDown', 'ArrowRight', 'Tab', 's', 'S'].includes(ev.key)) {
       foco = (foco + 1) % botones.length;
       ev.preventDefault();
     } else if (['ArrowUp', 'ArrowLeft', 'w', 'W'].includes(ev.key)) {
       foco = (foco - 1 + botones.length) % botones.length;
-    } else if (ev.key === 'Enter' || ev.key === ' ') {
-      botones[foco]?.pulsar();
+    } else if (ev.key === 'Enter' || (ev.key === ' ' && opciones.espacio !== false)) {
+      if (!opciones.guardia || opciones.guardia()) botones[foco]?.pulsar();
       return;
     } else return;
     pintar();

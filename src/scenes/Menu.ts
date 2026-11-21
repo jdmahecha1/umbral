@@ -110,10 +110,11 @@ export class Menu extends Phaser.Scene {
     texto(this, w / 2, yTitulo + 40 * u, 'Aguanta la noche. El farol no durará.', 13 * u, CSS.gris).setOrigin(0.5);
 
     const ancho = Math.min(w - 48, 260 * u);
-    const paso = 42 * u;
-    const y0 = Math.max(yTitulo + 84 * u, h * 0.42);
+    const paso = 40 * u;
+    const y0 = Math.max(yTitulo + 80 * u, h * 0.38);
     const etiquetaSonido = () => `Sonido: ${ajustes.sonido ? 'sí' : 'no'}`;
     const etiquetaMusica = () => `Música: ${ajustes.musica ? 'sí' : 'no'}`;
+    const etiquetaAuto = () => `Ataque automático: ${ajustes.autoataque ? 'sí' : 'no'}`;
     const b: Boton[] = [];
     b.push(boton(this, w / 2, y0, ancho, 'Jugar', () => this.jugar(), u));
     b.push(boton(this, w / 2, y0 + paso, ancho, `El Altar (${altar.brasas} brasas)`, () => this.altar(), u));
@@ -136,6 +137,13 @@ export class Menu extends Phaser.Scene {
         b[4]!.etiqueta.setText(etiquetaMusica());
       }, u),
     );
+    b.push(
+      boton(this, w / 2, y0 + paso * 4, ancho, etiquetaAuto(), () => {
+        ajustes.autoataque = !ajustes.autoataque;
+        guardarAjustes(ajustes);
+        b[5]!.etiqueta.setText(etiquetaAuto());
+      }, u),
+    );
     for (const x of b.slice(3)) x.etiqueta.setFontSize(Math.round(17 * u));
     b[0]!.cont.setName('boton-jugar');
     b[1]!.cont.setName('boton-altar');
@@ -145,7 +153,7 @@ export class Menu extends Phaser.Scene {
       texto(
         this,
         w / 2,
-        y0 + paso * 3 + 40 * u,
+        y0 + paso * 4 + 36 * u,
         `Mejor noche: ${formatoTiempo(records.mejorTiempo)} · Nivel ${records.mejorNivel} · ${records.mejorBajas} bajas`,
         11 * u,
         CSS.apagado,
@@ -186,6 +194,7 @@ export class Menu extends Phaser.Scene {
       'Cada partida es una noche de 10 minutos en el bosque.',
       'Muévete con WASD o las flechas. En el celular, arrastra el dedo por la mitad izquierda de la pantalla.',
       'Ataca con el clic izquierdo (puedes mantenerlo presionado) o con la barra espaciadora: tus armas apuntan hacia el cursor. En el celular, mantén el dedo en la mitad derecha: mientras lo tocas, atacas y tus armas apuntan al enemigo más cercano.',
+      '¿Prefieres no hacer clic todo el rato? Activa "Ataque automático" en este menú o en la pausa: tus armas atacarán solas hacia donde apuntes (en el celular, al enemigo más cercano).',
       'Cada arma tarda un momento en volver a estar lista: lo ves en su ícono, abajo a la izquierda.',
       'Recoge el ámbar que dejan los enemigos para subir de nivel y elegir una mejora.',
       'Tu farol alumbra a tu alrededor, pero su aceite se agota. Recoge aceite para no quedarte a oscuras.',

@@ -10,6 +10,8 @@ export interface Records {
 export interface Ajustes {
   sonido: boolean;
   musica: boolean;
+  /** Las armas atacan solas hacia donde apuntas (por defecto, no: el ataque es manual). */
+  autoataque: boolean;
 }
 
 export interface Resultado {
@@ -23,7 +25,7 @@ const CLAVE_RECORDS = 'umbral:records';
 const CLAVE_AJUSTES = 'umbral:ajustes';
 
 export const RECORDS_VACIOS: Records = { mejorTiempo: 0, mejorNivel: 0, mejorBajas: 0, partidas: 0, victorias: 0 };
-export const AJUSTES_INICIALES: Ajustes = { sonido: true, musica: true };
+export const AJUSTES_INICIALES: Ajustes = { sonido: true, musica: true, autoataque: false };
 
 type Almacen = Pick<Storage, 'getItem' | 'setItem'>;
 

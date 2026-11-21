@@ -66,11 +66,16 @@ test('al subir de nivel se elige una mejora', async ({ page }) => {
   await expect
     .poll(() => page.evaluate(() => (window as any).__umbral.scene.getScene('Hud').capa?.alpha ?? 0))
     .toBe(1);
+  // Y a que pase el breve bloqueo con el que el panel evita elecciones sin querer.
+  await page.waitForTimeout(900);
   // Pulsa la primera tarjeta (el centro de la pantalla queda dentro de la segunda, así que se usa la tecla o el toque).
   const tarjeta = await page.evaluate(() => {
     const hud = (window as any).__umbral.scene.getScene('Hud');
-    const r = hud.children.list.find((o: any) => o.type === 'Container' && o.depth === 100).list.find((o: any) => o.type === 'Rectangle' && o.input && o.width < hud.scale.width);
-    return { x: r.x, y: r.y };
+    const capa = hud.children.list.find((o: any) => o.type === 'Container' && o.depth === 100);
+    // Cada tarjeta va en su propio grupo dentro de la capa.
+    const grupo = capa.list.find((o: any) => o.type === 'Container');
+    const r = grupo.list.find((o: any) => o.type === 'Rectangle' && o.input);
+    return { x: capa.x + r.x * capa.scaleX, y: capa.y + r.y * capa.scaleY };
   });
   const niveles = () =>
     page.evaluate(() => {
@@ -198,6 +203,47 @@ test('el Altar abre desde el menú y guarda las compras', async ({ page }) => {
   await expect
     .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('umbral:altar') ?? '{}')))
     .toMatchObject({ brasas: 35, niveles: { vigor: 1 } });
+});
+
+/** Niveles totales del inventario (sube en 1 con cada mejora elegida). */
+async function totalNiveles(p: Page): Promise<number> {
+  return p.evaluate(() => {
+    const inv = (window as any).__umbral.scene.getScene('Juego').estado.inventario;
+    return [...Object.values(inv.armas), ...Object.values(inv.pasivas)].reduce((a: number, b: any) => a + b, 0);
+  });
+}
+
+test('un clic que venía de atacar no elige una mejora sin querer', async ({ page }, info) => {
+  test.skip(info.project.name === 'movil', 'prueba de ratón y teclado');
+  await page.goto('/?jugar&semilla=3');
+  await expect.poll(async () => (await estado(page)).tiempo).toBeGreaterThan(0.5);
+  const antes = await totalNiveles(page);
+  const { width, height } = page.viewportSize()!;
+  // Atacando con el clic presionado (y el espacio) justo cuando sube de nivel.
+  await page.mouse.move(width / 2, height / 2);
+  await page.mouse.down();
+  await page.keyboard.down(' ');
+  await page.evaluate(() => ((window as any).__umbral.scene.getScene('Juego').pendientes = 1));
+  await expect.poll(async () => (await estado(page)).eligiendo).toBe(true);
+  // Clics a lo loco y espacio mantenido durante el bloqueo: nada se elige.
+  await page.mouse.up();
+  for (let i = 0; i < 4; i++) await page.mouse.click(width / 2, height / 2);
+  await page.waitForTimeout(1200);
+  await page.keyboard.up(' ');
+  expect((await estado(page)).eligiendo).toBe(true);
+  expect(await totalNiveles(page)).toBe(antes);
+  // Pasado el bloqueo, un clic nuevo y deliberado sí elige.
+  await page.keyboard.press('1');
+  await expect.poll(() => totalNiveles(page)).toBe(antes + 1);
+});
+
+test('con el «Ataque automático» activado, las armas atacan sin clic', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(() => localStorage.setItem('umbral:ajustes', JSON.stringify({ sonido: false, musica: false, autoataque: true })));
+  await page.goto('/?jugar&semilla=3');
+  await expect.poll(async () => (await estado(page)).tiempo).toBeGreaterThan(0.5);
+  // Nadie toca nada y aun así la hoz se usa.
+  await expect.poll(() => cargaHoz(page)).toBeLessThan(1);
 });
 
 test('"Otra noche" reinicia la partida con la interfaz funcionando', async ({ page }) => {
