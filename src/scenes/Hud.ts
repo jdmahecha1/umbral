@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { COLOR, CSS } from '../art/paleta';
 import type { Sonido } from '../audio/sonido';
 import { Controles } from '../game/controles';
+import { actualizarTexto } from '../game/texto';
 import { DURACION } from '../logic/enemigos';
 import { formatoTiempo, guardarAjustes, leerAjustes, leerRecords } from '../logic/guardado';
 import type { IdArma, IdMejora, Opcion } from '../logic/mejoras';
@@ -181,8 +182,10 @@ export class Hud extends Phaser.Scene {
 
     // Reloj: cuenta hacia el amanecer.
     const restante = DURACION - e.tiempo;
-    this.reloj.setText(restante > 0 ? formatoTiempo(restante) : '¡Amanece!');
-    this.reloj.setColor(restante < 60 && restante > 0 ? CSS.ambarClaro : CSS.hueso);
+    actualizarTexto(this.reloj, {
+      texto: restante > 0 ? formatoTiempo(restante) : '¡Amanece!',
+      color: restante < 60 && restante > 0 ? CSS.ambarClaro : CSS.hueso,
+    });
     this.bajas.setText(String(e.bajas));
     this.obj<Phaser.GameObjects.Image>('calavera').setPosition(this.bajas.x - this.bajas.width - 12 * u, this.bajas.y + this.bajas.height / 2);
 

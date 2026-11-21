@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { CSS } from '../art/paleta';
 import { FUENTE_TEXTO } from '../scenes/Arranque';
+import { actualizarTexto } from './texto';
 
 export const PROF_EFECTOS = 2_000_000; // por encima de la oscuridad
 
@@ -37,8 +38,9 @@ export class Efectos {
         .text(0, 0, '', { fontFamily: FUENTE_TEXTO, fontSize: '10px', color: CSS.hueso, stroke: '#0b0a12', strokeThickness: 2 })
         .setOrigin(0.5, 1)
         .setDepth(PROF_EFECTOS);
-    t.setResolution(Math.max(1, Math.ceil(zoom)));
-    t.setText(String(Math.round(valor))).setColor(color).setPosition(x + (Math.random() - 0.5) * 8, y).setAlpha(1).setVisible(true).setScale(1);
+    // Un solo redibujado como mucho (y ninguno si se repite el mismo número del mismo color).
+    actualizarTexto(t, { texto: String(Math.round(valor)), color, resolucion: Math.max(1, Math.ceil(zoom)) });
+    t.setPosition(x + (Math.random() - 0.5) * 8, y).setAlpha(1).setVisible(true).setScale(1);
     this.numeros.push(t);
     this.escena.tweens.add({
       targets: t,
