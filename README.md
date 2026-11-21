@@ -66,6 +66,10 @@ Herramientas de prueba:
 
 Este proyecto se desarrolló con ayuda de herramientas de inteligencia artificial: Claude (Anthropic) como asistente principal de programación, y Gemini y Codex para borradores, pruebas y revisiones de código. Todo lo que propusieron se revisó, se probó y se corrigió antes de integrarlo; el diseño del juego, las decisiones y la dirección del proyecto son míos.
 
+## Créditos
+
+Creado por **toriikarii**, con aportes de [kyotto44](https://github.com/kyotto44) (rarezas y elección de personaje).
+
 ## Licencia
 
-Código bajo licencia MIT.
+**Todos los derechos reservados.** Puedes jugar y leer el código, pero no copiarlo, modificarlo, publicarlo ni venderlo sin permiso. Las contribuciones al repositorio se aceptan bajo las condiciones del archivo [LICENSE](LICENSE). Las versiones publicadas hasta el 20 de noviembre de 2026 siguen bajo la licencia MIT.

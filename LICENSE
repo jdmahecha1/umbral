@@ -1,21 +1,29 @@
-MIT License
+Umbral
+Copyright (c) 2026 toriikarii. Todos los derechos reservados.
 
-Copyright (c) 2026 toriikarii
+Este repositorio es público para que el juego se pueda jugar y su código se
+pueda leer. Que sea público no concede ninguna licencia de uso.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Lo que sí está permitido:
+- Jugar a Umbral en https://jdmahecha1.github.io/umbral/
+- Ver el código en GitHub y hacer "fork" dentro de GitHub, en la medida en
+  que lo permiten los Términos de servicio de GitHub.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+Lo que no está permitido sin permiso escrito de toriikarii:
+- Copiar, modificar, publicar, distribuir, sublicenciar o vender este
+  software, su código, su arte o su sonido, en todo o en parte, ni obras
+  derivadas de él.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Contribuciones
+Quien envía una contribución a este repositorio (commits o pull requests)
+otorga a toriikarii una licencia perpetua, mundial, gratuita, irrevocable y
+no exclusiva para usar, modificar, distribuir, sublicenciar y comercializar
+esa contribución como parte de Umbral, y declara que tiene derecho a
+otorgarla. El autor de cada contribución conserva su reconocimiento en el
+historial del proyecto.
+
+Versiones anteriores
+Las versiones publicadas hasta el 20 de noviembre de 2026 se distribuyeron
+bajo la licencia MIT, que sigue aplicando únicamente a esas versiones.
+
+EL SOFTWARE SE ENTREGA "TAL CUAL", SIN GARANTÍA DE NINGÚN TIPO.
