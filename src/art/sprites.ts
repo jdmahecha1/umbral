@@ -32,6 +32,97 @@ export const CAZADOR: Sprite = [
   [...CAZADOR_TORSO, '....0t0t0.......', '....00.00.......'],
 ];
 
+// ── Personajes elegibles ─────────────────────────────────────────
+/** La Verduga: silueta afilada, capucha roja en punta, cuero oscuro y hebilla. */
+const VERDUGO_TORSO: Mapa = [
+  '.....00.........',
+  '....0kl0........',
+  '....0kll0.......',
+  '...0kklll0......',
+  '...0kk111m0.....',
+  '....0111110.....',
+  '....0221220.....',
+  '...032212230....',
+  '..032211122220..',
+  '..02111d110.000.',
+  '...02111110.0e0.',
+  '...01121110.0f0.',
+  '....0110110.000.',
+  '....010.010.....',
+];
+export const VERDUGO: Sprite = [
+  [...VERDUGO_TORSO, '....010.010.....', '....00..00......'],
+  [...VERDUGO_TORSO, '...010...010....', '...00....00.....'],
+  [...VERDUGO_TORSO, '.....01010......', '.....00.00......'],
+];
+/** El Leñador: ancho y pesado, gorro verde, barba y franela a cuadros. */
+const LENADOR_TORSO: Mapa = [
+  '................',
+  '....0000000.....',
+  '...0hiiiiih0....',
+  '..0hhhhhhhhh0...',
+  '..0hh11111e0....',
+  '..0bbccccc0.....',
+  '..0bbbbbbb0.....',
+  '.0klmklmklm0....',
+  '0klmklmklmkl0...',
+  '0mklmklmklm0000.',
+  '0klmklmklm0.0e0.',
+  '0mklmklmkl0.0f0.',
+  '.0nnnnnnnn0.000.',
+  '.0nnn00nnn0.....',
+];
+export const LENADOR: Sprite = [
+  [...LENADOR_TORSO, '.0tt0..0tt0.....', '.000...000......'],
+  [...LENADOR_TORSO, '0tt0...0tt0.....', '000....000......'],
+  [...LENADOR_TORSO, '..0tt00tt0......', '..000..000......'],
+];
+/** El Zorro: delgado y ágil, capucha con orejas, bufanda blanca, ropa verde y cola. */
+const ZORRO_TORSO: Mapa = [
+  '....00...00.....',
+  '....0d0.0d0.....',
+  '....0cdddc0.....',
+  '....0cd11e0.....',
+  '.....011110.....',
+  '....0555550.....',
+  '....0hiiih0.....',
+  '...0ghiiiiihh0..',
+  '..0c0hiii0..000.',
+  '.0cd0hiii0..0e0.',
+  '.0c0.0ggg0..0f0.',
+  '..0..0g0g0..000.',
+  '.....0g0g0......',
+  '.....0t0t0......',
+];
+export const ZORRO: Sprite = [
+  [...ZORRO_TORSO, '.....0t0t0......', '.....00.00......'],
+  [...ZORRO_TORSO, '...0t0...0t0....', '..00......00....'],
+  [...ZORRO_TORSO, '....0t0.0t0.....', '....00...00.....'],
+];
+/** La Farolera: capucha morada, abrigo azul y un farol grande y brillante. */
+const FAROLERA_TORSO: Mapa = [
+  '................',
+  '.....00000......',
+  '....0rsssr0.....',
+  '...0rsssssr0....',
+  '...0rs111q0.....',
+  '...0rs11110.....',
+  '....0rrrrr0.....',
+  '...0nooooon0....',
+  '..0nooopooon0...',
+  '..0nooooo0.00000',
+  '..0nooooo0.0qeq0',
+  '..0nnooon0.0efe0',
+  '...0nnnn0..0qeq0',
+  '...0nnnn0..00000',
+];
+export const FAROLERA: Sprite = [
+  [...FAROLERA_TORSO, '....0t0t0.......', '....00.00.......'],
+  [...FAROLERA_TORSO, '...0t0.0t0......', '...00..00.......'],
+  [...FAROLERA_TORSO, '.....0t0........', '.....000........'],
+];
+
+
 // ── Enemigos ─────────────────────────────────────────────────────
 export const FATUO: Sprite = [
   [
@@ -353,6 +444,10 @@ ICONOS.leguas = recolorear([ICONOS.botas!], { b: 'r', c: 's' })[0]!;
 /** Sprites que se convierten en textura con fotogramas animados. */
 export const SPRITES: Record<string, Sprite> = {
   cazador: CAZADOR,
+  verdugo: VERDUGO,
+  lenador: LENADOR,
+  zorro: ZORRO,
+  farolera: FAROLERA,
   fatuo: FATUO,
   lobo: LOBO,
   espantajo: ESPANTAJO,

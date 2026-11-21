@@ -1,5 +1,6 @@
 import { ALTAR_VACIO, bonosAltar, type BonosAltar } from './altar';
 import { statsCampana, statsDagas, statsHoz, statsLlamarada, statsRunas } from './armas';
+import type { ModsPersonaje } from './personajes';
 import { RAREZAS, sortear, type Rareza } from './rareza';
 import type { Rng } from './rng';
 import type { IdReliquia } from './tienda';
@@ -62,8 +63,9 @@ export interface Inventario {
   pasivas: Partial<Record<IdPasiva, number>>;
 }
 
-export function inventarioInicial(): Inventario {
-  return { armas: { hoz: 1 }, pasivas: {} };
+/** Lo que llevas al empezar: solo el arma de tu personaje (la hoz, si no se dice otra). */
+export function inventarioInicial(arma: IdArma = 'hoz'): Inventario {
+  return { armas: { [arma]: 1 }, pasivas: {} };
 }
 
 export function nivelDe(inv: Inventario, id: IdMejora): number {
@@ -273,10 +275,12 @@ export const BASE: Atributos = {
   aceiteMin: 0,
 };
 
-/** Lo que llega de fuera de la partida (Altar) y lo comprado al mercader (reliquias). */
+/** Lo que llega de fuera de la partida (personaje y Altar) y lo comprado al mercader (reliquias). */
 export interface Extras {
   altar: BonosAltar;
   reliquias: ReadonlySet<IdReliquia>;
+  /** Sin personaje, se juega con el cazador. */
+  personaje?: ModsPersonaje;
 }
 
 export const SIN_EXTRAS: Extras = { altar: bonosAltar(ALTAR_VACIO.niveles), reliquias: new Set() };
@@ -286,17 +290,18 @@ export function atributos(inv: Inventario, extras: Extras = SIN_EXTRAS): Atribut
   const n = (id: IdPasiva) => inv.pasivas[id] ?? 0;
   const r = (id: IdReliquia) => extras.reliquias.has(id);
   const a = extras.altar;
+  const p = extras.personaje;
   return {
-    vidaMax: BASE.vidaMax + 20 * n('roble') + a.vidaExtra,
-    velocidad: BASE.velocidad * (1 + 0.08 * n('botas')) * a.velocidad * (r('leguas') ? 1.15 : 1),
+    vidaMax: (p?.vida ?? BASE.vidaMax) + 20 * n('roble') + a.vidaExtra,
+    velocidad: BASE.velocidad * (p?.velocidad ?? 1) * (1 + 0.08 * n('botas')) * a.velocidad * (r('leguas') ? 1.15 : 1),
     regeneracion: BASE.regeneracion + 0.4 * n('musgo'),
-    radioRecoger: BASE.radioRecoger * (1 + 0.3 * n('iman')),
-    dano: BASE.dano * (1 + 0.1 * n('filo')) * a.dano * (r('colmillo') ? 1.2 : 1),
+    radioRecoger: BASE.radioRecoger * (p?.radioRecoger ?? 1) * (1 + 0.3 * n('iman')),
+    dano: BASE.dano * (p?.dano ?? 1) * (1 + 0.1 * n('filo')) * a.dano * (r('colmillo') ? 1.2 : 1),
     enfriamiento: BASE.enfriamiento * Math.pow(0.93, n('reloj')),
-    gastoAceite: (BASE.gastoAceite * Math.pow(0.85, n('mecha'))) / a.aceite,
-    luz: BASE.luz * (1 + 0.08 * n('mecha')) * (r('linterna') ? 1.25 : 1),
-    armadura: BASE.armadura + n('coraza'),
-    xp: a.xp * (r('caliz') ? 1.4 : 1),
+    gastoAceite: ((p?.gastoAceite ?? 1) * BASE.gastoAceite * Math.pow(0.85, n('mecha'))) / a.aceite,
+    luz: BASE.luz * (p?.luz ?? 1) * (1 + 0.08 * n('mecha')) * (r('linterna') ? 1.25 : 1),
+    armadura: BASE.armadura + (p?.armadura ?? 0) + n('coraza'),
+    xp: (p?.xp ?? 1) * a.xp * (r('caliz') ? 1.4 : 1),
     monedas: a.monedas,
     esquiva: r('capa') ? 1 / 6 : 0,
     espinas: r('espinas') ? 12 : 0,

@@ -32,6 +32,8 @@ export class Arranque extends Phaser.Scene {
         monedas: Number(parametros.get('monedas')) || 0,
         bot: parametros.has('bot'),
         rapido: Number(parametros.get('rapido')) || 1,
+        // Para probar un personaje sin pasar por el menú: ?jugar&personaje=zorro
+        personaje: parametros.get('personaje') ?? undefined,
       });
     else this.scene.start('Menu');
   }

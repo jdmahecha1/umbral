@@ -32,14 +32,34 @@ test('el menú carga y el botón Jugar empieza la partida', async ({ page }) => 
   const errores = recogerErrores(page);
   await page.goto('/');
   await expect.poll(async () => (await estado(page)).escenas).toContain('Menu');
-  const pos = await page.evaluate(() => {
-    const m = (window as any).__umbral.scene.getScene('Menu');
-    const c = m.children.getByName('boton-jugar');
-    return { x: c.x, y: c.y };
-  });
-  await page.mouse.click(pos.x, pos.y);
+  // "Jugar" abre la elección de personaje: se pulsa la tarjeta del Zorro.
+  const tarjeta = async () =>
+    page.evaluate(() => {
+      const t = (window as any).__umbral.scene.getScene('Menu').tarjetasPersonaje.zorro;
+      if (!t?.active) return null;
+      const r = t.getBounds();
+      return { x: r.centerX, y: r.centerY };
+    });
+  // Si la ventana cambia de tamaño justo al empezar, el menú se redibuja y la elección se cierra: se vuelve a pulsar Jugar.
+  await expect(async () => {
+    if (!(await tarjeta())) {
+      const pos = await page.evaluate(() => {
+        const c = (window as any).__umbral.scene.getScene('Menu').children.getByName('boton-jugar');
+        return { x: c.x, y: c.y };
+      });
+      await page.mouse.click(pos.x, pos.y);
+    }
+    expect(await tarjeta()).not.toBeNull();
+  }).toPass({ timeout: 20_000 });
+  const t = (await tarjeta())!;
+  await page.mouse.click(t.x, t.y);
   await expect.poll(async () => (await estado(page)).escenas).toEqual(expect.arrayContaining(['Juego', 'Hud']));
   await expect.poll(async () => (await estado(page)).tiempo).toBeGreaterThan(1);
+  const elegido = await page.evaluate(() => {
+    const j = (window as any).__umbral.scene.getScene('Juego');
+    return { personaje: j.personaje.id, armas: j.estado.inventario.armas };
+  });
+  expect(elegido).toEqual({ personaje: 'zorro', armas: { dagas: 1 } });
   expect(errores).toEqual([]);
 });
 

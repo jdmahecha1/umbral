@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { ORDEN_PERSONAJES } from '../logic/personajes';
 import { crearRng } from '../logic/rng';
 import { PALETA } from './paleta';
 import { arbusto, pino, suelo, tajo } from './procedural';
@@ -121,7 +122,7 @@ export function crearAnimaciones(scene: Phaser.Scene): void {
       repeat: -1,
     });
   };
-  anim('cazador:andar', [1, 0, 2, 0], 9);
+  for (const id of ORDEN_PERSONAJES) anim(`${id}:andar`, [1, 0, 2, 0], 9);
   anim('fatuo', [0, 1], 6);
   anim('lobo', [0, 1], 8);
   anim('espantajo', [0, 1], 4);
