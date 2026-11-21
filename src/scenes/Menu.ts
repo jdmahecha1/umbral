@@ -5,6 +5,7 @@ import { Mundo } from '../game/mundo';
 import { Oscuridad } from '../game/oscuridad';
 import { ALTAR, comprarAltar, defAltar, guardarAltar, leerAltar, precioSiguiente } from '../logic/altar';
 import { formatoTiempo, guardarAjustes, leerAjustes, leerRecords } from '../logic/guardado';
+import { ORDEN_PERSONAJES, PERSONAJES, personaje, rasgos, type DefPersonaje, type IdPersonaje } from '../logic/personajes';
 import { zoomPara } from './Juego';
 import { boton, navegarConTeclado, panel, texto, unidad, type Boton } from './ui';
 
@@ -30,7 +31,8 @@ export class FondoMenu extends Phaser.Scene {
       const s = this.add.sprite(0, 0, 'fatuo').play({ key: 'fatuo', startFrame: i % 2 }).setOrigin(0.5, 1);
       this.fatuos.push({ s, a: (i / 7) * Math.PI * 2, r: 60 + (i % 3) * 30, v: 0.15 + (i % 4) * 0.05 });
     }
-    const cazador = this.add.sprite(-14, 30, 'cazador', '0').setOrigin(0.5, 1).setDepth(30);
+    // En el fondo del menú aparece el último personaje elegido.
+    const cazador = this.add.sprite(-14, 30, personaje(leerAjustes().personaje).id, '0').setOrigin(0.5, 1).setDepth(30);
     this.add.image(cazador.x, cazador.y - 1, 'sombra').setDepth(28);
     this.scale.on('resize', this.redimensionar, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -96,6 +98,7 @@ export class Menu extends Phaser.Scene {
   private construir(): void {
     this.soltarTeclado?.();
     this.children.removeAll(true);
+    this.tarjetasPersonaje = {};
     const { width: w, height: h } = this.scale;
     const u = unidad(this);
     const sonido = this.registry.get('sonido') as Sonido;
@@ -164,7 +167,99 @@ export class Menu extends Phaser.Scene {
 
   private jugar(): void {
     (this.registry.get('sonido') as Sonido).desbloquear();
-    this.scene.start('Juego', {});
+    this.elegirPersonaje();
+  }
+
+  /** Empieza la noche con ese personaje y lo recuerda para "Otra noche" y la próxima vez. */
+  private empezar(id: IdPersonaje): void {
+    const ajustes = leerAjustes();
+    ajustes.personaje = id;
+    guardarAjustes(ajustes);
+    this.scene.start('Juego', { personaje: id });
+  }
+
+  /** Tarjetas de los personajes (solo para las pruebas automáticas: se lee su posición). */
+  tarjetasPersonaje: Partial<Record<IdPersonaje, Phaser.GameObjects.Rectangle>> = {};
+
+  /** Elegir personaje: todos están disponibles desde el principio. */
+  private elegirPersonaje(): void {
+    const { width: w, height: h } = this.scale;
+    const u = unidad(this);
+    const elegido = personaje(leerAjustes().personaje).id;
+    const sep = Math.round(10 * u);
+    const margen = 16 * u;
+    const columnas = Phaser.Math.Clamp(Math.floor((w - 24) / (262 * u)), 1, 3);
+    const anchoTarjeta = columnas === 1 ? Math.min(w - 24, 440 * u) - margen * 2 : 250 * u;
+    const anchoPanel = columnas * anchoTarjeta + (columnas - 1) * sep + margen * 2;
+
+    const tarjetas = ORDEN_PERSONAJES.map((id) => this.tarjetaPersonaje(PERSONAJES[id], anchoTarjeta, u, () => this.empezar(id)));
+    const filas: number[] = [];
+    tarjetas.forEach((t, i) => {
+      const f = Math.floor(i / columnas);
+      filas[f] = Math.max(filas[f] ?? 0, t.alto);
+    });
+    const cabecera = 84 * u;
+    const pie = 70 * u;
+    const altoPanel = cabecera + filas.reduce((s, a) => s + a, 0) + sep * (filas.length - 1) + pie;
+    const { capa, cerrar } = this.capaModal(altoPanel);
+    const top = h / 2 - altoPanel / 2;
+    capa.add(panel(this, w / 2, h / 2, anchoPanel, altoPanel, u));
+    capa.add(texto(this, w / 2, top + 18 * u, 'Elige a tu personaje', 22 * u, CSS.ambarClaro, 'titulo').setOrigin(0.5, 0));
+    capa.add(
+      texto(this, w / 2, top + 50 * u, 'Todos están disponibles. Puedes cambiar de personaje cada noche.', 11 * u, CSS.gris)
+        .setOrigin(0.5, 0)
+        .setWordWrapWidth(anchoPanel - 32 * u, true)
+        .setAlign('center'),
+    );
+
+    this.tarjetasPersonaje = {};
+    let y = top + cabecera;
+    tarjetas.forEach((t, i) => {
+      const col = i % columnas;
+      const fila = Math.floor(i / columnas);
+      if (col === 0 && fila > 0) y += filas[fila - 1]! + sep;
+      // La última fila incompleta se centra.
+      const enFila = Math.min(columnas, tarjetas.length - fila * columnas);
+      const anchoFila = enFila * anchoTarjeta + (enFila - 1) * sep;
+      t.boton.cont.setPosition(w / 2 - anchoFila / 2 + col * (anchoTarjeta + sep), y);
+      t.boton.fondo.setSize(anchoTarjeta, filas[fila]!).setInteractive({ useHandCursor: true });
+      capa.add(t.boton.cont);
+      this.tarjetasPersonaje[ORDEN_PERSONAJES[i]!] = t.boton.fondo;
+    });
+
+    const volver = boton(this, w / 2, top + altoPanel - 32 * u, Math.min(anchoPanel - 48 * u, 200 * u), 'Volver', cerrar, u);
+    capa.add(volver.cont);
+    const botones = [...tarjetas.map((t) => t.boton), volver];
+    this.soltarTeclado = navegarConTeclado(this, botones, ORDEN_PERSONAJES.indexOf(elegido));
+  }
+
+  /** Tarjeta de un personaje: su sprite, nombre, papel, qué lo hace distinto y sus números. */
+  private tarjetaPersonaje(def: DefPersonaje, ancho: number, u: number, alPulsar: () => void): { boton: Boton; alto: number } {
+    const pad = 10 * u;
+    const tx = pad + 54 * u;
+    const anchoTexto = ancho - tx - pad;
+    const fondo = this.add.rectangle(0, 0, ancho, 10, COLOR.panel).setOrigin(0).setStrokeStyle(Math.max(2, Math.round(2 * u)), COLOR.borde);
+    const figura = this.add.image(pad + 22 * u, pad + 4 * u, def.id, '0').setOrigin(0.5, 0).setScale(3 * u);
+    const nombre = texto(this, tx, pad, def.nombre, 14 * u, CSS.hueso, true);
+    const papel = texto(this, tx, nombre.y + nombre.height, def.papel, 11 * u, CSS.ambar);
+    const desc = texto(this, tx, papel.y + papel.height + 4 * u, def.texto, 11 * u, CSS.gris).setWordWrapWidth(anchoTexto, true);
+    const numeros = texto(this, tx, desc.y + desc.height + 4 * u, rasgos(def).join('\n'), 11 * u, CSS.ambarClaro)
+      .setWordWrapWidth(anchoTexto, true)
+      .setLineSpacing(1 * u);
+    const alto = Math.max(numeros.y + numeros.height + pad, 64 * u);
+    const cont = this.add.container(0, 0, [fondo, figura, nombre, papel, desc, numeros]);
+    const resaltar = (on: boolean) => {
+      fondo.setStrokeStyle(Math.max(2, Math.round(2 * u)), on ? COLOR.ambar : COLOR.borde).setFillStyle(on ? 0x221c2c : COLOR.panel);
+      nombre.setColor(on ? CSS.ambarClaro : CSS.hueso);
+    };
+    const pulsar = () => {
+      (this.registry.get('sonido') as Sonido).reproducir('boton');
+      alPulsar();
+    };
+    fondo.on('pointerover', () => resaltar(true));
+    fondo.on('pointerout', () => resaltar(false));
+    fondo.on('pointerup', () => pulsar());
+    return { boton: { cont, etiqueta: nombre, fondo, pulsar, resaltar }, alto };
   }
 
   /** Capa modal centrada; si su contenido es más alto que la pantalla, se reduce. */
@@ -192,6 +287,7 @@ export class Menu extends Phaser.Scene {
     const ancho = Math.min(w - 24, 460 * u);
     const lineas = [
       'Cada partida es una noche de 10 minutos en el bosque.',
+      'Al pulsar Jugar eliges personaje. Todos están disponibles: unos pegan más, otros aguantan más o corren más. Puedes cambiar cada noche.',
       'Muévete con WASD o las flechas. En el celular, arrastra el dedo por la mitad izquierda de la pantalla.',
       'Ataca con el clic izquierdo (puedes mantenerlo presionado) o con la barra espaciadora: tus armas apuntan hacia el cursor. En el celular, mantén el dedo en la mitad derecha: mientras lo tocas, atacas y tus armas apuntan al enemigo más cercano.',
       '¿Prefieres no hacer clic todo el rato? Activa "Ataque automático" en este menú o en la pausa: tus armas atacarán solas hacia donde apuntes (en el celular, al enemigo más cercano).',

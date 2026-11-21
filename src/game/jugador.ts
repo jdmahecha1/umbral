@@ -28,10 +28,12 @@ export class Jugador {
   constructor(
     private escena: Phaser.Scene,
     public atrib: Atributos,
+    /** Textura del personaje elegido; su animación de andar es `<clave>:andar`. */
+    private clave = 'cazador',
   ) {
     this.vida = atrib.vidaMax;
     this.sombra = escena.add.image(0, 0, 'sombra').setDepth(-1);
-    this.spr = escena.add.sprite(0, 0, 'cazador', '0').setOrigin(0.5, 1);
+    this.spr = escena.add.sprite(0, 0, clave, '0').setOrigin(0.5, 1);
   }
 
   actualizar(dt: number, mx: number, my: number, atacando = false): void {
@@ -44,7 +46,8 @@ export class Jugador {
       this.dirY = my;
       // Mientras ataca, mira hacia donde apunta (lo decide la escena).
       if (!atacando && Math.abs(mx) > 0.15) this.mirando = mx > 0 ? 1 : -1;
-      if (this.spr.anims.currentAnim?.key !== 'cazador:andar') this.spr.play('cazador:andar');
+      const andar = `${this.clave}:andar`;
+      if (this.spr.anims.currentAnim?.key !== andar) this.spr.play(andar);
     } else if (this.spr.anims.isPlaying) {
       this.spr.stop();
       this.spr.setFrame('0');

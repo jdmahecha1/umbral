@@ -1,17 +1,19 @@
 // Simula noches completas con el bot y resume cuánto aguanta. Mide la dificultad.
-// Uso: node scripts/simular.mjs [semillas=3] [rapido=6] [brasas-del-altar=0]
+// Uso: node scripts/simular.mjs [semillas=3] [rapido=6] [altar-en-json]
+// Para probar un personaje: PERSONAJE=zorro node scripts/simular.mjs 3 6
 import { chromium } from '@playwright/test';
 const semillas = Number(process.argv[2] ?? 3);
 const rapido = Number(process.argv[3] ?? 6);
 const altar = process.argv[4] ? JSON.parse(process.argv[4]) : null;
+const personaje = process.env.PERSONAJE ?? 'cazador';
 const b = await chromium.launch({ channel: 'chrome', args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 for (let s = 1; s <= semillas; s++) {
   const p = await b.newPage({ viewport: { width: 960, height: 600 } });
   const errores = [];
   p.on('pageerror', (e) => errores.push(String(e)));
-  await p.goto('http://localhost:5174/');
+  await p.goto('http://localhost:5174/', { timeout: 120_000 });
   await p.evaluate((a) => { localStorage.clear(); if (a) localStorage.setItem('umbral:altar', JSON.stringify(a)); }, altar);
-  await p.goto(`http://localhost:5174/?jugar&bot&semilla=${s * 97}&rapido=${rapido}`);
+  await p.goto(`http://localhost:5174/?jugar&bot&semilla=${s * 97}&rapido=${rapido}&personaje=${personaje}`, { timeout: 120_000 });
   await p.waitForFunction(() => window.__umbral?.scene.isActive('Juego'));
   const marcas = [];
   let ultimo = 0;
@@ -22,7 +24,7 @@ for (let s = 1; s <= semillas; s++) {
     ultimo = e.t;
     if (e.fin || e.t > 760) {
       const reg = await p.evaluate(() => window.__umbral.scene.getScene('Juego').registro);
-      console.log(`semilla ${s}: ${e.fin ? (e.vida > 0 ? 'GANÓ' : 'murió') : 'tiempo'} en ${Math.round(e.t)}s, nivel ${e.nv}, bajas ${e.bajas}, armas ${JSON.stringify(e.armas)}${e.jefe !== null ? `, jefe con ${e.jefe}` : ''}`);
+      console.log(`${personaje} semilla ${s}: ${e.fin ? (e.vida > 0 ? 'GANÓ' : 'murió') : 'tiempo'} en ${Math.round(e.t)}s, nivel ${e.nv}, bajas ${e.bajas}, armas ${JSON.stringify(e.armas)}${e.jefe !== null ? `, jefe con ${e.jefe}` : ''}`);
       console.log('   ' + marcas.join(' | '));
       if (reg.length) console.log('   ' + reg.join(' | '));
       if (errores.length) console.log('   ERRORES: ' + errores.join(' ; '));

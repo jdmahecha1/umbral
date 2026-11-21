@@ -14,7 +14,7 @@ import { bonosAltar, brasasGanadas, guardarAltar, leerAltar } from '../logic/alt
 import { anillo, enjambre, puntoFueraDeVista } from '../logic/aparicion';
 import { ENEMIGOS, MAX_VIVOS, elegirTipo, eventosEntre, ritmo, type TipoEnemigo } from '../logic/enemigos';
 import { sumarXp, xpParaNivel } from '../logic/experiencia';
-import { guardarResultado, type Records, type Resultado } from '../logic/guardado';
+import { guardarResultado, leerAjustes, type Records, type Resultado } from '../logic/guardado';
 import {
   ARMAS,
   aplicar,
@@ -28,6 +28,7 @@ import {
   type Inventario,
   type Opcion,
 } from '../logic/mejoras';
+import { personaje, type DefPersonaje } from '../logic/personajes';
 import { crearRng, type Rng } from '../logic/rng';
 import {
   ARTICULOS,
@@ -93,7 +94,9 @@ export class Juego extends Phaser.Scene {
   private pasos = 1;
 
   private inv!: Inventario;
-  private extras!: { altar: Extras['altar']; reliquias: Set<IdReliquia> };
+  private extras!: { altar: Extras['altar']; reliquias: Set<IdReliquia>; personaje: Extras['personaje'] };
+  /** Con quién se juega esta noche. */
+  personaje!: DefPersonaje;
   private progreso = { nivel: 1, xp: 0 };
   private tiempo = 0;
   private bajas = 0;
@@ -113,7 +116,7 @@ export class Juego extends Phaser.Scene {
     super('Juego');
   }
 
-  create(datos: { semilla?: number; desde?: number; monedas?: number; bot?: boolean; rapido?: number }): void {
+  create(datos: { semilla?: number; desde?: number; monedas?: number; bot?: boolean; rapido?: number; personaje?: string }): void {
     const semilla = datos.semilla ?? Math.floor(Math.random() * 2 ** 31);
     this.rng = crearRng(semilla);
     this.sonido = this.registry.get('sonido') as Sonido;
@@ -130,8 +133,10 @@ export class Juego extends Phaser.Scene {
     this.tiempo = Math.max(0, datos.desde ?? 0);
     this.monedas = Math.max(0, datos.monedas ?? 0);
     this.progreso = { nivel: 1, xp: 0 };
-    this.inv = inventarioInicial();
-    this.extras = { altar: bonosAltar(leerAltar().niveles), reliquias: new Set() };
+    // Sin personaje en los datos (menú, "Otra noche"), se juega con el último elegido.
+    this.personaje = personaje(datos.personaje ?? leerAjustes().personaje);
+    this.inv = inventarioInicial(this.personaje.arma);
+    this.extras = { altar: bonosAltar(leerAltar().niveles), reliquias: new Set(), personaje: this.personaje.mods };
     this.tienda = { ofertas: [], cambios: 0, compradas: {} };
     this.registro = [];
     this.time.paused = false;
@@ -140,7 +145,7 @@ export class Juego extends Phaser.Scene {
     this.ajustarZoom();
     this.mundo = new Mundo(this, semilla);
     this.efectos = new Efectos(this);
-    this.jugador = new Jugador(this, atributos(this.inv, this.extras));
+    this.jugador = new Jugador(this, atributos(this.inv, this.extras), this.personaje.id);
     this.horda = new Horda(this, this.efectos);
     this.horda.alGolpear(() => this.sonido.reproducir('golpe', 0.45));
     this.objetos = new Objetos(this);
