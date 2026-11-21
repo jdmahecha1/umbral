@@ -2,7 +2,6 @@ import Phaser from 'phaser';
 import { recolorear } from '../art/sprites';
 import { RAIZON } from '../art/grandes';
 import { registrarSprite } from '../art/texturas';
-import { direccionHacia } from '../logic/aparicion';
 import { ENEMIGOS, multVida, type DefEnemigo, type TipoEnemigo } from '../logic/enemigos';
 import { Rejilla } from '../logic/rejilla';
 import type { Efectos } from './efectos';
@@ -55,6 +54,8 @@ export class Horda {
   private libres: Enemigo[] = [];
   private balas: Bala[] = [];
   private rejilla = new Rejilla(24);
+  /** Dirección hacia el jugador, reutilizada para cada enemigo (evita crear un objeto por enemigo y fotograma). */
+  private dir = { x: 0, y: 0 };
   vivos = 0;
   /** Enemigos muertos pendientes de procesar (la escena decide qué sueltan y luego vacía la lista). */
   readonly muertes: Muerte[] = [];
@@ -133,13 +134,18 @@ export class Horda {
   actualizar(dt: number, j: Jugador, onDanoJugador: (d: number, quien?: Enemigo) => void): void {
     this.rejilla.vaciar();
     for (const e of this.lista) if (e.activo) this.rejilla.insertar(e.id, e.x, e.y);
+    const dir = this.dir;
 
     for (const e of this.lista) {
       if (!e.activo) continue;
       e.edad += dt;
       e.reloj -= dt;
-      const dir = direccionHacia(e.x, e.y, j.x, j.y);
-      const dist = Math.hypot(j.x - e.x, j.y - e.y);
+      // Dirección y distancia al jugador con una sola raíz y sin crear objetos (se hace para cada enemigo en cada fotograma).
+      const hx = j.x - e.x;
+      const hy = j.y - e.y;
+      const dist = Math.sqrt(hx * hx + hy * hy);
+      dir.x = dist > 0 ? hx / dist : 0;
+      dir.y = dist > 0 ? hy / dist : 0;
       let vx = dir.x * e.def.velocidad;
       let vy = dir.y * e.def.velocidad;
 
@@ -179,26 +185,29 @@ export class Horda {
       }
 
       // Separación: empuja a los vecinos superpuestos para que no se apilen.
+      // Separación en línea, sin funciones ni objetos: se ejecuta miles de veces por fotograma.
       let sx = 0;
       let sy = 0;
-      this.rejilla.consultar(e.x, e.y, e.def.radio + 10, (id) => {
-        if (id === e.id) return;
+      const total = this.rejilla.vecinos(e.x, e.y, e.def.radio + 10);
+      const vecinos = this.rejilla.encontrados;
+      for (let k = 0; k < total; k++) {
+        const id = vecinos[k]!;
+        if (id === e.id) continue;
         const o = this.lista[id]!;
-        if (!o.activo) return;
-        // Separación en línea (sin crear objetos: se ejecuta miles de veces por fotograma).
+        if (!o.activo) continue;
         const dx = e.x - o.x;
         const dy = e.y - o.y;
         const min = e.def.radio + o.def.radio;
         const d2 = dx * dx + dy * dy;
-        if (d2 >= min * min) return;
+        if (d2 >= min * min) continue;
         const d = Math.sqrt(d2);
         if (d === 0) {
           sx += min;
-          return;
+          continue;
         }
         sx += (dx / d) * (min - d);
         sy += (dy / d) * (min - d);
-      });
+      }
       const empuje = e.def.jefe ? 0 : 6;
       e.x += (vx + e.kx + sx * empuje) * dt;
       e.y += (vy + e.ky + sy * empuje) * dt;
@@ -325,13 +334,16 @@ export class Horda {
 
   /** El enemigo activo más cercano dentro de `rMax`, o null. */
   masCercano(x: number, y: number, rMax: number, excluir?: Set<number>): Enemigo | null {
+    // Compara distancias al cuadrado: mismo resultado, sin una raíz por enemigo.
     let mejor: Enemigo | null = null;
-    let dMejor = rMax;
+    let d2Mejor = rMax * rMax;
     for (const e of this.lista) {
       if (!e.activo || excluir?.has(e.uid)) continue;
-      const d = Math.hypot(e.x - x, e.y - y);
-      if (d < dMejor) {
-        dMejor = d;
+      const dx = e.x - x;
+      const dy = e.y - y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < d2Mejor) {
+        d2Mejor = d2;
         mejor = e;
       }
     }
