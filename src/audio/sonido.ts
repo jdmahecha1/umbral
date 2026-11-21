@@ -24,8 +24,11 @@ const MUESTRAS: Partial<Record<Efecto, { archivos: string[]; volumen: number }>>
   moneda: { archivos: ['moneda'], volumen: 0.5 },
 };
 
-/** Volumen de cada pista (ya vienen igualadas a la misma sonoridad). */
-const VOLUMEN_PISTA: Record<Pista, number> = { menu: 0.5, combate: 0.32 };
+/**
+ * Volumen de cada pista (ya vienen igualadas a la misma sonoridad). La de la noche
+ * va muy baja, de fondo: no debe tapar los golpes ni distraer.
+ */
+const VOLUMEN_PISTA: Record<Pista, number> = { menu: 0.5, combate: 0.13 };
 
 /** Carpeta de los sonidos, respetando la ruta base con la que se publica el juego. */
 function rutaSonidos(): string {
@@ -173,7 +176,7 @@ export class Sonido {
 
   private volumenPista(p: Pista): number {
     // En la noche, la música sube un poco cuando aprieta (jefes, final).
-    return VOLUMEN_PISTA[p] * (p === 'combate' ? 0.8 + this.intensidadActual * 0.35 : 1);
+    return VOLUMEN_PISTA[p] * (p === 'combate' ? 0.85 + this.intensidadActual * 0.2 : 1);
   }
 
   private detenerPista(): void {

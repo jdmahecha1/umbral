@@ -36,7 +36,7 @@ Juego de acción por oleadas en pixel art para el navegador. Un cazador con un f
 
 - **La luz como recurso.** Lo que queda fuera del farol se ve en penumbra, y el aceite se gasta con el tiempo.
 - **Arte 100 % propio.** Todos los sprites están dibujados como mapas de píxeles en el código (`src/art/`) y las texturas se generan al arrancar. No se descarga ninguna imagen.
-- **Sonido.** La música y algunos efectos (tajos, dagas, golpes, esquiva, monedas) son grabaciones con licencia CC0 de Kenney, MintoDog y congusbongus ([créditos](public/sonidos/CREDITOS.md)); el resto se sintetiza con Web Audio. Si un archivo no carga, el juego usa el sonido sintetizado.
+- **Sonido.** La música y algunos efectos (tajos, dagas, golpes, esquiva, monedas) son grabaciones con licencia CC0 de Kenney, Kistol y congusbongus ([créditos](public/sonidos/CREDITOS.md)); el resto se sintetiza con Web Audio. Si un archivo no carga, el juego usa el sonido sintetizado.
 
 ## Tecnología
 
