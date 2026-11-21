@@ -76,6 +76,6 @@ describe('personajes', () => {
   it('la tarjeta muestra sus números', () => {
     expect(rasgos(PERSONAJES.verdugo)).toEqual(['Vida: 75', 'Daño: +70 %', 'Empieza con: Hoz de plata']);
     expect(rasgos(PERSONAJES.lenador)).toContain('Velocidad: −15 %');
-    expect(rasgos(PERSONAJES.farolera)).toContain('El aceite le dura +43 %');
+    expect(rasgos(PERSONAJES.farolera)).toContain('Duración del aceite: +43 %');
   });
 });

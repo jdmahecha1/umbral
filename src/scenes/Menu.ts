@@ -162,7 +162,7 @@ export class Menu extends Phaser.Scene {
         CSS.apagado,
       ).setOrigin(0.5);
     }
-    texto(this, w / 2, h - 14 * u, '© toriikarii · arte y sonido hechos en código', 9 * u, CSS.apagado).setOrigin(0.5, 1);
+    texto(this, w / 2, h - 14 * u, `v${__VERSION__} · por toriikarii y kyotto44 · arte y sonido hechos en código`, 9 * u, CSS.apagado).setOrigin(0.5, 1);
   }
 
   private jugar(): void {

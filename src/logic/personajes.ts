@@ -99,9 +99,9 @@ export function rasgos(def: DefPersonaje): string[] {
   if (m.dano !== 1) res.push(`Daño: ${pct(m.dano)}`);
   if (m.velocidad !== 1) res.push(`Velocidad: ${pct(m.velocidad)}`);
   if (m.armadura) res.push(`Bloquea ${m.armadura} de daño en cada golpe`);
-  if (m.radioRecoger !== 1) res.push(`Recoge desde ${pct(m.radioRecoger)} lejos`);
-  if (m.luz !== 1) res.push(`Su farol alumbra ${pct(m.luz)}`);
-  if (m.gastoAceite !== 1) res.push(`El aceite le dura ${pct(1 / m.gastoAceite)}`);
+  if (m.radioRecoger !== 1) res.push(`Radio para recoger: ${pct(m.radioRecoger)}`);
+  if (m.luz !== 1) res.push(`Luz del farol: ${pct(m.luz)}`);
+  if (m.gastoAceite !== 1) res.push(`Duración del aceite: ${pct(1 / m.gastoAceite)}`);
   if (m.xp !== 1) res.push(`Experiencia: ${pct(m.xp)}`);
   res.push(`Empieza con: ${ARMAS[def.arma].nombre}`);
   return res;

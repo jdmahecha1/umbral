@@ -51,9 +51,16 @@ test('el menú carga y el botón Jugar empieza la partida', async ({ page }) => 
     }
     expect(await tarjeta()).not.toBeNull();
   }).toPass({ timeout: 20_000 });
-  const t = (await tarjeta())!;
-  await page.mouse.click(t.x, t.y);
-  await expect.poll(async () => (await estado(page)).escenas).toEqual(expect.arrayContaining(['Juego', 'Hud']));
+  // Con el render por software, un clic justo al abrirse el panel a veces se pierde: se reintenta.
+  await expect(async () => {
+    const t = await tarjeta();
+    if (t) {
+      await page.mouse.move(t.x, t.y);
+      await page.waitForTimeout(100);
+      await page.mouse.click(t.x, t.y);
+    }
+    await expect.poll(async () => (await estado(page)).escenas, { timeout: 3000 }).toEqual(expect.arrayContaining(['Juego', 'Hud']));
+  }).toPass({ timeout: 20_000 });
   await expect.poll(async () => (await estado(page)).tiempo).toBeGreaterThan(1);
   const elegido = await page.evaluate(() => {
     const j = (window as any).__umbral.scene.getScene('Juego');
