@@ -397,9 +397,9 @@ export class Juego extends Phaser.Scene {
     const atacando = control?.atacando() ?? false;
     const angulo = this.anguloApunte();
     if (control?.pedirEsquiva()) {
-      // Hacia donde te mueves; quieto, hacia donde apuntas.
+      // Hacia donde te mueves; si estás quieto, hacia donde caminaste por última vez.
       const quieto = Math.hypot(v.x, v.y) < 0.1;
-      if (j.esquivar(quieto ? Math.cos(angulo) : v.x, quieto ? Math.sin(angulo) : v.y)) this.sonido.reproducir('esquiva', 0.55);
+      if (j.esquivar(quieto ? j.dirX : v.x, quieto ? j.dirY : v.y)) this.sonido.reproducir('esquiva', 0.55);
     }
     this.controles?.setCargaEsquiva(j.cargaEsquiva());
     if (atacando && !j.esquivando) j.mirando = Math.cos(angulo) >= 0 ? 1 : -1;

@@ -299,11 +299,12 @@ test('la esquiva da un impulso rápido y luego se recarga', async ({ page }, inf
     await expect.poll(async () => (await esquiva(page)).x).toBeGreaterThan(antes.x + 2);
     const caminando = await esquiva(page);
     await page.keyboard.press('Shift');
+    // Se espera a que el impulso termine en tiempo de juego (con render por software el juego va más lento que el reloj).
     await expect.poll(async () => (await esquiva(page)).carga).toBeLessThan(1);
-    await page.waitForTimeout(300);
+    await expect.poll(() => page.evaluate(() => (window as any).__umbral.scene.getScene('Juego').jugador.esquivando)).toBe(false);
     await page.keyboard.up('d');
-    // El impulso recorre mucho más que caminar ese mismo rato (≈ 19 unidades en 0,3 s).
-    expect((await esquiva(page)).x - caminando.x).toBeGreaterThan(35);
+    // Solo el impulso ya recorre unas 35 unidades (caminando, eso tomaría más de medio segundo).
+    expect((await esquiva(page)).x - caminando.x).toBeGreaterThan(30);
   }
   await expect.poll(async () => (await esquiva(page)).carga).toBeLessThan(1);
   await expect.poll(async () => (await esquiva(page)).carga, { timeout: 10_000 }).toBe(1);
