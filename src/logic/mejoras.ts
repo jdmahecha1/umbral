@@ -1,7 +1,8 @@
 import { ALTAR_VACIO, bonosAltar, type BonosAltar } from './altar';
 import { statsCampana, statsDagas, statsHoz, statsLlamarada, statsRunas } from './armas';
 import type { ModsPersonaje } from './personajes';
-import { mezclar, type Rng } from './rng';
+import { RAREZAS, sortear, type Rareza } from './rareza';
+import type { Rng } from './rng';
 import type { IdReliquia } from './tienda';
 
 export type IdArma = 'hoz' | 'dagas' | 'farol' | 'runas' | 'campana';
@@ -17,33 +18,35 @@ export interface DefMejora {
   que: string;
   /** Nivel máximo. */
   max: number;
+  /** Cuánto cuesta que salga por primera vez. */
+  rareza: Rareza;
 }
 
 export const MAX_ARMAS = 4;
 export const MAX_PASIVAS = 4;
 
 export const ARMAS: Record<IdArma, DefMejora> = {
-  hoz: { id: 'hoz', tipo: 'arma', nombre: 'Hoz de plata', que: 'Al atacar, das un tajo en arco hacia donde apuntas. Golpea a todos los que alcanza.', max: 5 },
-  dagas: { id: 'dagas', tipo: 'arma', nombre: 'Dagas de hueso', que: 'Al atacar, lanzas dagas hacia donde apuntas. Llegan lejos.', max: 5 },
-  farol: { id: 'farol', tipo: 'arma', nombre: 'Llamarada del farol', que: 'Al atacar, sueltas un chorro de fuego hacia donde apuntas. Además, tu farol alumbra más.', max: 5 },
-  runas: { id: 'runas', tipo: 'arma', nombre: 'Runas errantes', que: 'Al atacar, lanzas runas que van hacia donde apuntas y vuelven a ti, golpeando a la ida y a la vuelta.', max: 5 },
-  campana: { id: 'campana', tipo: 'arma', nombre: 'Campana de difuntos', que: 'Al atacar, la campana suena y una onda daña y aleja a todos los enemigos que te rodean.', max: 5 },
+  hoz: { id: 'hoz', tipo: 'arma', nombre: 'Hoz de plata', que: 'Al atacar, das un tajo en arco hacia donde apuntas. Golpea a todos los que alcanza.', max: 5, rareza: 'comun' },
+  dagas: { id: 'dagas', tipo: 'arma', nombre: 'Dagas de hueso', que: 'Al atacar, lanzas dagas hacia donde apuntas. Llegan lejos.', max: 5, rareza: 'epica' },
+  farol: { id: 'farol', tipo: 'arma', nombre: 'Llamarada del farol', que: 'Al atacar, sueltas un chorro de fuego hacia donde apuntas. Además, tu farol alumbra más.', max: 5, rareza: 'epica' },
+  runas: { id: 'runas', tipo: 'arma', nombre: 'Runas errantes', que: 'Al atacar, lanzas runas que van hacia donde apuntas y vuelven a ti, golpeando a la ida y a la vuelta.', max: 5, rareza: 'rara' },
+  campana: { id: 'campana', tipo: 'arma', nombre: 'Campana de difuntos', que: 'Al atacar, la campana suena y una onda daña y aleja a todos los enemigos que te rodean.', max: 5, rareza: 'legendaria' },
 };
 
 export const PASIVAS: Record<IdPasiva, DefMejora> = {
-  botas: { id: 'botas', tipo: 'pasiva', nombre: 'Paso ligero', que: 'Caminas más rápido.', max: 5 },
-  roble: { id: 'roble', tipo: 'pasiva', nombre: 'Corazón de roble', que: 'Tienes más vida máxima.', max: 5 },
-  musgo: { id: 'musgo', tipo: 'pasiva', nombre: 'Musgo curativo', que: 'Recuperas vida poco a poco, sin hacer nada.', max: 5 },
-  iman: { id: 'iman', tipo: 'pasiva', nombre: 'Ámbar imantado', que: 'Atraes el ámbar y las monedas desde más lejos.', max: 5 },
-  filo: { id: 'filo', tipo: 'pasiva', nombre: 'Piedra de afilar', que: 'Todas tus armas hacen más daño.', max: 5 },
-  reloj: { id: 'reloj', tipo: 'pasiva', nombre: 'Reloj de arena', que: 'Tus armas tardan menos en volver a estar listas.', max: 5 },
-  mecha: { id: 'mecha', tipo: 'pasiva', nombre: 'Mecha larga', que: 'El aceite del farol dura más y ves más lejos.', max: 5 },
-  coraza: { id: 'coraza', tipo: 'pasiva', nombre: 'Coraza de cuero', que: 'Cada golpe que recibes te quita un poco menos de vida.', max: 5 },
+  botas: { id: 'botas', tipo: 'pasiva', nombre: 'Paso ligero', que: 'Caminas más rápido.', max: 5, rareza: 'comun' },
+  roble: { id: 'roble', tipo: 'pasiva', nombre: 'Corazón de roble', que: 'Tienes más vida máxima.', max: 5, rareza: 'comun' },
+  musgo: { id: 'musgo', tipo: 'pasiva', nombre: 'Musgo curativo', que: 'Recuperas vida poco a poco, sin hacer nada.', max: 5, rareza: 'rara' },
+  iman: { id: 'iman', tipo: 'pasiva', nombre: 'Ámbar imantado', que: 'Atraes el ámbar y las monedas desde más lejos.', max: 5, rareza: 'comun' },
+  filo: { id: 'filo', tipo: 'pasiva', nombre: 'Piedra de afilar', que: 'Todas tus armas hacen más daño.', max: 5, rareza: 'epica' },
+  reloj: { id: 'reloj', tipo: 'pasiva', nombre: 'Reloj de arena', que: 'Tus armas tardan menos en volver a estar listas.', max: 5, rareza: 'epica' },
+  mecha: { id: 'mecha', tipo: 'pasiva', nombre: 'Mecha larga', que: 'El aceite del farol dura más y ves más lejos.', max: 5, rareza: 'rara' },
+  coraza: { id: 'coraza', tipo: 'pasiva', nombre: 'Coraza de cuero', que: 'Cada golpe que recibes te quita un poco menos de vida.', max: 5, rareza: 'rara' },
 };
 
 export const CONSUMIBLES: Record<IdConsumible, DefMejora> = {
-  pan: { id: 'pan', tipo: 'consumible', nombre: 'Pan de centeno', que: 'Recuperas 30 de vida ahora mismo.', max: 1 },
-  aceite: { id: 'aceite', tipo: 'consumible', nombre: 'Frasco de aceite', que: 'Llenas el farol ahora mismo.', max: 1 },
+  pan: { id: 'pan', tipo: 'consumible', nombre: 'Pan de centeno', que: 'Recuperas 30 de vida ahora mismo.', max: 1, rareza: 'comun' },
+  aceite: { id: 'aceite', tipo: 'consumible', nombre: 'Frasco de aceite', que: 'Llenas el farol ahora mismo.', max: 1, rareza: 'comun' },
 };
 
 export function definicion(id: IdMejora): DefMejora {
@@ -79,6 +82,7 @@ export interface Opcion {
   /** Cambios concretos con números, por ejemplo "Daño: 12 → 16". */
   cambios: string[];
   tipo: DefMejora['tipo'];
+  rareza: Rareza;
 }
 
 /** Todas las mejoras que se podrían ofrecer ahora mismo. */
@@ -195,23 +199,28 @@ export function cambios(id: IdMejora, nivel: number): string[] {
 function aOpcion(inv: Inventario, id: IdMejora): Opcion {
   const def = definicion(id);
   const nivel = def.tipo === 'consumible' ? 1 : nivelDe(inv, id) + 1;
-  return { id, nivel, nombre: def.nombre, que: def.que, cambios: cambios(id, nivel), tipo: def.tipo };
+  return { id, nivel, nombre: def.nombre, que: def.que, cambios: cambios(id, nivel), tipo: def.tipo, rareza: def.rareza };
+}
+
+/** Lo que ya tienes sale el doble que algo común nuevo: así se puede subir de nivel. */
+export const PESO_YA_TENIDA = 2;
+
+/**
+ * Probabilidad relativa de que salga una mejora. Lo nuevo sale según su rareza;
+ * lo que ya tienes, siempre con el mismo peso, para que encontrar algo raro valga la pena.
+ */
+export function pesoMejora(inv: Inventario, id: IdMejora): number {
+  return nivelDe(inv, id) > 0 ? PESO_YA_TENIDA : RAREZAS[definicion(id).rareza].peso;
 }
 
 /**
- * Elige `n` opciones distintas para la subida de nivel. Da prioridad leve a
- * mejorar lo que ya tienes, como en el género. Si no queda nada, ofrece consumibles.
+ * Elige `n` opciones distintas para la subida de nivel, según su rareza.
+ * Si no queda nada, ofrece consumibles.
  */
 export function ofrecer(inv: Inventario, rng: Rng, n = 3): Opcion[] {
   const pool = candidatas(inv);
   if (pool.length === 0) return (['pan', 'aceite'] as const).map((id) => aOpcion(inv, id));
-  // Las que ya tienes aparecen dos veces en la bolsa: más probabilidad, sin repetir.
-  const bolsa = pool.flatMap((id) => (nivelDe(inv, id) > 0 ? [id, id] : [id]));
-  const elegidas: IdMejora[] = [];
-  for (const id of mezclar(rng, bolsa)) {
-    if (!elegidas.includes(id)) elegidas.push(id);
-    if (elegidas.length === n) break;
-  }
+  const elegidas = sortear(rng, pool.map((id) => ({ valor: id, peso: pesoMejora(inv, id) })), n);
   return elegidas.map((id) => aOpcion(inv, id));
 }
 

@@ -10,6 +10,7 @@ Juego de acción por oleadas en pixel art para el navegador. Un cazador con un f
 - **Moverse:** WASD o flechas. En el celular, arrastra el dedo por la mitad izquierda de la pantalla.
 - **Atacar:** clic izquierdo (se puede mantener presionado) o barra espaciadora; las armas apuntan al cursor. En el celular, mantén el dedo en la mitad derecha: atacas y las armas apuntan al enemigo más cercano. Ninguna arma ataca sola, salvo que actives "Ataque automático" en el menú o en la pausa.
 - **Subir de nivel:** recoge el ámbar que sueltan los enemigos y elige una de tres mejoras. Cada tarjeta dice qué hace la mejora y qué números cambian.
+- **Rarezas:** cada mejora y cada artículo del mercader es Común, Rara, Épica o Legendaria. Lo más raro sale menos, pero una vez que lo tienes, sus mejoras salen tan seguido como las demás.
 - **El farol:** se gasta. El aceite que sueltan algunos enemigos lo rellena. Sin aceite, la luz se reduce al mínimo.
 - **El mercader:** tres veces por noche el tiempo se detiene y puedes gastar las monedas de la partida en reliquias (revivir una vez, esquivar golpes, más daño…) o en objetos de un solo uso.
 - **El Altar:** al terminar ganas brasas, que se guardan para siempre. En el menú las cambias por mejoras permanentes.
