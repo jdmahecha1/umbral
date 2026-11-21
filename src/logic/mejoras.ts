@@ -1,12 +1,12 @@
 import { ALTAR_VACIO, bonosAltar, type BonosAltar } from './altar';
-import { statsCampana, statsDagas, statsHoz, statsLlamarada, statsRunas } from './armas';
+import { NIVEL_MAX_ARMA, statsCampana, statsDagas, statsHoz, statsLlamarada, statsRunas } from './armas';
 import type { ModsPersonaje } from './personajes';
 import { RAREZAS, sortear, type Rareza } from './rareza';
 import type { Rng } from './rng';
 import type { IdReliquia } from './tienda';
 
 export type IdArma = 'hoz' | 'dagas' | 'farol' | 'runas' | 'campana';
-export type IdPasiva = 'botas' | 'roble' | 'musgo' | 'iman' | 'filo' | 'reloj' | 'mecha' | 'coraza';
+export type IdPasiva = 'botas' | 'roble' | 'musgo' | 'iman' | 'filo' | 'reloj' | 'mecha' | 'coraza' | 'pluma';
 export type IdConsumible = 'pan' | 'aceite';
 export type IdMejora = IdArma | IdPasiva | IdConsumible;
 
@@ -26,11 +26,11 @@ export const MAX_ARMAS = 4;
 export const MAX_PASIVAS = 4;
 
 export const ARMAS: Record<IdArma, DefMejora> = {
-  hoz: { id: 'hoz', tipo: 'arma', nombre: 'Hoz de plata', que: 'Al atacar, das un tajo en arco hacia donde apuntas. Golpea a todos los que alcanza.', max: 5, rareza: 'comun' },
-  dagas: { id: 'dagas', tipo: 'arma', nombre: 'Dagas de hueso', que: 'Al atacar, lanzas dagas hacia donde apuntas. Llegan lejos.', max: 5, rareza: 'epica' },
-  farol: { id: 'farol', tipo: 'arma', nombre: 'Llamarada del farol', que: 'Al atacar, sueltas un chorro de fuego hacia donde apuntas. Además, tu farol alumbra más.', max: 5, rareza: 'epica' },
-  runas: { id: 'runas', tipo: 'arma', nombre: 'Runas errantes', que: 'Al atacar, lanzas runas que van hacia donde apuntas y vuelven a ti, golpeando a la ida y a la vuelta.', max: 5, rareza: 'rara' },
-  campana: { id: 'campana', tipo: 'arma', nombre: 'Campana de difuntos', que: 'Al atacar, la campana suena y una onda daña y aleja a todos los enemigos que te rodean.', max: 5, rareza: 'legendaria' },
+  hoz: { id: 'hoz', tipo: 'arma', nombre: 'Hoz de plata', que: 'Al atacar, das un tajo en arco hacia donde apuntas. Golpea a todos los que alcanza.', max: NIVEL_MAX_ARMA, rareza: 'comun' },
+  dagas: { id: 'dagas', tipo: 'arma', nombre: 'Dagas de hueso', que: 'Al atacar, lanzas dagas hacia donde apuntas. Llegan lejos.', max: NIVEL_MAX_ARMA, rareza: 'epica' },
+  farol: { id: 'farol', tipo: 'arma', nombre: 'Llamarada del farol', que: 'Al atacar, sueltas un chorro de fuego hacia donde apuntas. Además, tu farol alumbra más.', max: NIVEL_MAX_ARMA, rareza: 'epica' },
+  runas: { id: 'runas', tipo: 'arma', nombre: 'Runas errantes', que: 'Al atacar, lanzas runas que van hacia donde apuntas y vuelven a ti, golpeando a la ida y a la vuelta.', max: NIVEL_MAX_ARMA, rareza: 'rara' },
+  campana: { id: 'campana', tipo: 'arma', nombre: 'Campana de difuntos', que: 'Al atacar, la campana suena y una onda daña y aleja a todos los enemigos que te rodean.', max: NIVEL_MAX_ARMA, rareza: 'legendaria' },
 };
 
 export const PASIVAS: Record<IdPasiva, DefMejora> = {
@@ -42,6 +42,7 @@ export const PASIVAS: Record<IdPasiva, DefMejora> = {
   reloj: { id: 'reloj', tipo: 'pasiva', nombre: 'Reloj de arena', que: 'Tus armas tardan menos en volver a estar listas.', max: 5, rareza: 'epica' },
   mecha: { id: 'mecha', tipo: 'pasiva', nombre: 'Mecha larga', que: 'El aceite del farol dura más y ves más lejos.', max: 5, rareza: 'rara' },
   coraza: { id: 'coraza', tipo: 'pasiva', nombre: 'Coraza de cuero', que: 'Cada golpe que recibes te quita un poco menos de vida.', max: 5, rareza: 'rara' },
+  pluma: { id: 'pluma', tipo: 'pasiva', nombre: 'Pluma de cuervo', que: 'Tu esquiva se recarga antes: puedes esquivar más seguido.', max: 5, rareza: 'rara' },
 };
 
 export const CONSUMIBLES: Record<IdConsumible, DefMejora> = {
@@ -57,7 +58,7 @@ export function maxNivel(id: IdMejora): number {
   return definicion(id).max;
 }
 
-/** Lo que el jugador lleva: id → nivel actual (1 a 5). */
+/** Lo que el jugador lleva: id → nivel actual (armas de 1 a 8, pasivas de 1 a 5). */
 export interface Inventario {
   armas: Partial<Record<IdArma, number>>;
   pasivas: Partial<Record<IdPasiva, number>>;
@@ -112,8 +113,8 @@ function tamano(valor: number, umbrales: [number, string][]): string {
 }
 
 const ALCANCE_CORTO: [number, string][] = [[0, 'corto'], [38, 'medio'], [50, 'largo'], [60, 'muy largo']];
-const DISTANCIA: [number, string][] = [[0, 'media'], [80, 'larga'], [100, 'muy larga']];
-const ONDA: [number, string][] = [[0, 'mediana'], [70, 'grande'], [100, 'enorme']];
+const DISTANCIA: [number, string][] = [[0, 'media'], [80, 'larga'], [100, 'muy larga'], [115, 'enorme']];
+const ONDA: [number, string][] = [[0, 'mediana'], [70, 'grande'], [100, 'enorme'], [115, 'gigante']];
 /** Luz base del farol lleno, para expresar la luz extra en porcentaje. */
 const LUZ_BASE = 94;
 
@@ -126,12 +127,18 @@ function statsArma(id: IdArma, nivel: number): [string, string][] {
         ['Daño', String(s.dano)],
         ['Alcance', tamano(s.alcance, ALCANCE_CORTO)],
         ['Espera entre tajos', seg(s.recarga)],
+        ['Ancho del tajo', s.angulo >= 160 ? 'muy ancho' : 'ancho'],
         ['También golpea a los enemigos a tu espalda', s.atras ? 'sí' : 'no'],
       ];
     }
     case 'dagas': {
       const s = statsDagas(nivel);
-      return [['Daño', String(s.dano)], ['Dagas por ataque', String(s.cantidad)], ['Enemigos que atraviesa cada daga', String(s.atraviesa)]];
+      return [
+        ['Daño', String(s.dano)],
+        ['Dagas por ataque', String(s.cantidad)],
+        ['Enemigos que atraviesa cada daga', String(s.atraviesa)],
+        ['Espera entre lanzamientos', seg(s.recarga)],
+      ];
     }
     case 'farol': {
       const s = statsLlamarada(nivel);
@@ -139,12 +146,18 @@ function statsArma(id: IdArma, nivel: number): [string, string][] {
         ['Daño', String(s.dano)],
         ['Alcance del fuego', tamano(s.alcance, ALCANCE_CORTO)],
         ['Espera entre llamaradas', seg(s.recarga)],
+        ['Ancho del fuego', s.angulo >= 68 ? 'muy ancho' : 'ancho'],
         ['Tu farol alumbra', `+${Math.round((s.luzExtra / LUZ_BASE) * 100)} %`],
       ];
     }
     case 'runas': {
       const s = statsRunas(nivel);
-      return [['Daño', String(s.dano)], ['Runas por ataque', String(s.cantidad)], ['Distancia', tamano(s.alcance, DISTANCIA)]];
+      return [
+        ['Daño', String(s.dano)],
+        ['Runas por ataque', String(s.cantidad)],
+        ['Distancia', tamano(s.alcance, DISTANCIA)],
+        ['Espera entre runas', seg(s.recarga)],
+      ];
     }
     case 'campana': {
       const s = statsCampana(nivel);
@@ -175,6 +188,8 @@ function totalPasiva(id: IdPasiva, nivel: number): [string, string][] {
       ];
     case 'coraza':
       return [['Daño que bloqueas en cada golpe', String(nivel)]];
+    case 'pluma':
+      return [['Tu esquiva se recarga', `+${pct(1 / Math.pow(FACTOR_PLUMA, nivel) - 1)} más rápido`]];
   }
 }
 
@@ -256,6 +271,14 @@ export interface Atributos {
   espinas: number;
   /** Aceite mínimo (0..100) por debajo del cual el farol no baja. */
   aceiteMin: number;
+  /** Segundos que tarda la esquiva en volver a estar lista. */
+  recargaEsquiva: number;
+  /** Los enemigos normales por debajo de esta fracción de vida mueren al golpe (Hacha del verdugo). */
+  ejecutar: number;
+  /** Vida que recuperas por cada enemigo derribado (Savia de roble). */
+  curarAlDerribar: number;
+  /** Daño extra mientras el farol tiene más de la mitad de aceite (Farol de vidrio soplado). */
+  bonoFarolLleno: number;
 }
 
 export const BASE: Atributos = {
@@ -273,7 +296,36 @@ export const BASE: Atributos = {
   esquiva: 0,
   espinas: 0,
   aceiteMin: 0,
+  recargaEsquiva: 1.3,
+  ejecutar: 0,
+  curarAlDerribar: 0,
+  bonoFarolLleno: 0,
 };
+
+/** Cuánto acorta la recarga de la esquiva cada nivel de la Pluma de cuervo. */
+export const FACTOR_PLUMA = 0.88;
+
+/**
+ * Topes de los atributos: por muchas mejoras, reliquias y bonos del Altar que se
+ * junten, ninguna combinación rompe el juego (por ejemplo, armas que nunca paran
+ * o un jugador al que nada le hace daño).
+ */
+export const LIMITES = {
+  /** Multiplicador máximo de daño (también con el bono del Farol de vidrio). */
+  dano: 2.6,
+  /** Las armas nunca esperan menos del 55 % de su recarga normal. */
+  enfriamientoMin: 0.55,
+  /** Velocidad máxima: rápida, pero los enemigos te siguen alcanzando. */
+  velocidad: BASE.velocidad * 1.65,
+  /** Daño máximo que bloquea la armadura: los golpes fuertes siguen doliendo. */
+  armadura: 6,
+  regeneracion: 3,
+  radioRecoger: BASE.radioRecoger * 3.2,
+  luz: 1.7,
+  gastoAceiteMin: 0.35,
+  xp: 2.2,
+  recargaEsquivaMin: 0.45,
+} as const;
 
 /** Lo que llega de fuera de la partida (personaje y Altar) y lo comprado al mercader (reliquias). */
 export interface Extras {
@@ -285,27 +337,36 @@ export interface Extras {
 
 export const SIN_EXTRAS: Extras = { altar: bonosAltar(ALTAR_VACIO.niveles), reliquias: new Set() };
 
-/** Atributos del jugador según sus pasivas, el Altar y las reliquias. */
+/** Atributos del jugador según sus pasivas, el Altar y las reliquias, con sus topes (ver LIMITES). */
 export function atributos(inv: Inventario, extras: Extras = SIN_EXTRAS): Atributos {
   const n = (id: IdPasiva) => inv.pasivas[id] ?? 0;
   const r = (id: IdReliquia) => extras.reliquias.has(id);
   const a = extras.altar;
   const p = extras.personaje;
+  const tope = (v: number, max: number) => Math.min(v, max);
+  const suelo = (v: number, min: number) => Math.max(v, min);
   return {
     vidaMax: (p?.vida ?? BASE.vidaMax) + 20 * n('roble') + a.vidaExtra,
-    velocidad: BASE.velocidad * (p?.velocidad ?? 1) * (1 + 0.08 * n('botas')) * a.velocidad * (r('leguas') ? 1.15 : 1),
-    regeneracion: BASE.regeneracion + 0.4 * n('musgo'),
-    radioRecoger: BASE.radioRecoger * (p?.radioRecoger ?? 1) * (1 + 0.3 * n('iman')),
-    dano: BASE.dano * (p?.dano ?? 1) * (1 + 0.1 * n('filo')) * a.dano * (r('colmillo') ? 1.2 : 1),
-    enfriamiento: BASE.enfriamiento * Math.pow(0.93, n('reloj')),
-    gastoAceite: ((p?.gastoAceite ?? 1) * BASE.gastoAceite * Math.pow(0.85, n('mecha'))) / a.aceite,
-    luz: BASE.luz * (p?.luz ?? 1) * (1 + 0.08 * n('mecha')) * (r('linterna') ? 1.25 : 1),
-    armadura: BASE.armadura + (p?.armadura ?? 0) + n('coraza'),
-    xp: (p?.xp ?? 1) * a.xp * (r('caliz') ? 1.4 : 1),
+    velocidad: tope(
+      BASE.velocidad * (p?.velocidad ?? 1) * (1 + 0.08 * n('botas')) * a.velocidad * (r('leguas') ? 1.15 : 1) * (r('cuerno') ? 1.08 : 1),
+      LIMITES.velocidad,
+    ),
+    regeneracion: tope(BASE.regeneracion + 0.4 * n('musgo'), LIMITES.regeneracion),
+    radioRecoger: tope(BASE.radioRecoger * (p?.radioRecoger ?? 1) * (1 + 0.3 * n('iman')) * (r('cuerno') ? 1.2 : 1), LIMITES.radioRecoger),
+    dano: tope(BASE.dano * (p?.dano ?? 1) * (1 + 0.1 * n('filo')) * a.dano * (r('colmillo') ? 1.2 : 1) * (r('cuerno') ? 1.08 : 1), LIMITES.dano),
+    enfriamiento: suelo(BASE.enfriamiento * Math.pow(0.93, n('reloj')), LIMITES.enfriamientoMin),
+    gastoAceite: suelo(((p?.gastoAceite ?? 1) * BASE.gastoAceite * Math.pow(0.85, n('mecha'))) / a.aceite, LIMITES.gastoAceiteMin),
+    luz: tope(BASE.luz * (p?.luz ?? 1) * (1 + 0.08 * n('mecha')) * (r('linterna') ? 1.25 : 1), LIMITES.luz),
+    armadura: tope(BASE.armadura + (p?.armadura ?? 0) + n('coraza'), LIMITES.armadura),
+    xp: tope((p?.xp ?? 1) * a.xp * (r('caliz') ? 1.4 : 1), LIMITES.xp),
     monedas: a.monedas,
     esquiva: r('capa') ? 1 / 6 : 0,
     espinas: r('espinas') ? 12 : 0,
     aceiteMin: r('linterna') ? 20 : 0,
+    recargaEsquiva: suelo(BASE.recargaEsquiva * Math.pow(FACTOR_PLUMA, n('pluma')) * (r('cola') ? 0.6 : 1), LIMITES.recargaEsquivaMin),
+    ejecutar: r('hacha') ? 0.15 : 0,
+    curarAlDerribar: r('savia') ? 1 : 0,
+    bonoFarolLleno: r('vidrio') ? 0.2 : 0,
   };
 }
 

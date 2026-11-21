@@ -9,10 +9,12 @@ Juego de acción por oleadas en pixel art para el navegador. Un cazador con un f
 - **Personaje:** al pulsar Jugar eliges con quién pasar la noche. Todos están disponibles desde el principio y cada uno gana en algo y lo paga en otra cosa.
 - **Moverse:** WASD o flechas. En el celular, arrastra el dedo por la mitad izquierda de la pantalla.
 - **Atacar:** clic izquierdo (se puede mantener presionado) o barra espaciadora; las armas apuntan al cursor. En el celular, mantén el dedo en la mitad derecha: atacas y las armas apuntan al enemigo más cercano. Ninguna arma ataca sola, salvo que actives "Ataque automático" en el menú o en la pausa.
-- **Subir de nivel:** recoge el ámbar que sueltan los enemigos y elige una de tres mejoras. Cada tarjeta dice qué hace la mejora y qué números cambian.
+- **Esquivar:** Shift o clic derecho (en el celular, el botón pequeño junto al de ataque). Un impulso rápido durante el que nada te hace daño; tarda un poco en recargarse.
+- **Subir de nivel:** recoge el ámbar que sueltan los enemigos y elige una de tres mejoras. Cada tarjeta dice qué hace la mejora y qué números cambian. Si no te convence ninguna, puedes volver a tirar (3 veces por noche) o saltar y llevarte unas monedas.
 - **Rarezas:** cada mejora y cada artículo del mercader es Común, Rara, Épica o Legendaria. Lo más raro sale menos, pero una vez que lo tienes, sus mejoras salen tan seguido como las demás.
 - **El farol:** se gasta. El aceite que sueltan algunos enemigos lo rellena. Sin aceite, la luz se reduce al mínimo.
-- **El mercader:** tres veces por noche el tiempo se detiene y puedes gastar las monedas de la partida en reliquias (revivir una vez, esquivar golpes, más daño…) o en objetos de un solo uso.
+- **El mercader:** tres veces por noche el tiempo se detiene y puedes gastar las monedas de la partida en reliquias (revivir una vez, esquivar golpes, más daño…) o en objetos de un solo uso. Siempre trae el objeto propio de tu personaje.
+- **Sin combinaciones rotas:** daño, velocidad, recargas y armadura tienen topes, así que ninguna mezcla de personaje, mejoras, reliquias y Altar rompe el juego (hay una prueba que revisa todas las combinaciones).
 - **El Altar:** al terminar ganas brasas, que se guardan para siempre. En el menú las cambias por mejoras permanentes.
 - **La noche:** dura 10 minutos. A los 5 llega el Guardián de musgo y, al amanecer, el Ciervo de Ceniza. Si lo vences, ganas.
 - **Pausa:** Esc o P, o el botón II.
@@ -22,9 +24,10 @@ Juego de acción por oleadas en pixel art para el navegador. Un cazador con un f
 | | |
 |---|---|
 | Personajes | El Cazador (equilibrado), La Verduga (mucho daño, poca vida), El Leñador (aguanta mucho, pega poco), El Zorro (rápido y frágil), La Farolera (luz y experiencia) |
-| Armas | Hoz de plata, Dagas de hueso, Llamarada del farol, Runas errantes, Campana de difuntos (5 niveles cada una) |
-| Mejoras pasivas | Paso ligero, Corazón de roble, Musgo curativo, Ámbar imantado, Piedra de afilar, Reloj de arena, Mecha larga, Coraza de cuero |
+| Armas | Hoz de plata, Dagas de hueso, Llamarada del farol, Runas errantes, Campana de difuntos (8 niveles cada una) |
+| Mejoras pasivas | Paso ligero, Corazón de roble, Musgo curativo, Ámbar imantado, Piedra de afilar, Reloj de arena, Mecha larga, Coraza de cuero, Pluma de cuervo |
 | Reliquias del mercader | Amuleto del segundo aliento, Cáliz de ámbar, Capa de sombra, Cota de espinas, Linterna de plata, Colmillo de lobo, Botas de siete leguas |
+| Objetos de personaje | Cuerno de caza (Cazador), Hacha del verdugo (Verduga), Savia de roble (Leñador), Cola de zorro (Zorro), Farol de vidrio soplado (Farolera) |
 | Altar | Vigor, Fuerza, Agilidad, Aceite de reserva, Codicia, Saber |
 | Enemigos | Fuego fatuo, Lobo hueco, Espantajo, Ánima en pena, Bruja del pantano, Raizón |
 | Jefes | Guardián de musgo y El Ciervo de Ceniza |
@@ -33,7 +36,7 @@ Juego de acción por oleadas en pixel art para el navegador. Un cazador con un f
 
 - **La luz como recurso.** Lo que queda fuera del farol se ve en penumbra, y el aceite se gasta con el tiempo.
 - **Arte 100 % propio.** Todos los sprites están dibujados como mapas de píxeles en el código (`src/art/`) y las texturas se generan al arrancar. No se descarga ninguna imagen.
-- **Sonido sintetizado.** Efectos y música se generan con Web Audio. No se carga ningún archivo de audio.
+- **Sonido.** La música y algunos efectos (tajos, dagas, golpes, esquiva, monedas) son grabaciones con licencia CC0 de Kenney, MintoDog y congusbongus ([créditos](public/sonidos/CREDITOS.md)); el resto se sintetiza con Web Audio. Si un archivo no carga, el juego usa el sonido sintetizado.
 
 ## Tecnología
 

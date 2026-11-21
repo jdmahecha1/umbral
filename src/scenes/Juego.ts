@@ -57,7 +57,16 @@ export interface Estado {
   cargas: Partial<Record<IdArma, number>>;
   reliquias: IdReliquia[];
   jefe: { nombre: string; vida: number; vidaMax: number } | null;
+  /** Carga de la esquiva: 0 recién usada, 1 lista. */
+  esquiva: number;
+  /** Veces que aún puedes volver a tirar las mejoras esta noche. */
+  tiradas: number;
 }
+
+/** Veces por noche que se pueden cambiar las mejoras ofrecidas al subir de nivel. */
+export const TIRADAS_POR_NOCHE = 3;
+/** Monedas que recibes si saltas una subida de nivel sin elegir nada. */
+export const MONEDAS_AL_SALTAR = 8;
 
 export interface Fin {
   resultado: Resultado;
@@ -103,6 +112,11 @@ export class Juego extends Phaser.Scene {
   private monedas = 0;
   private acumulador = 0;
   private pendientes = 0;
+  private tiradas = TIRADAS_POR_NOCHE;
+  /** Segundos de "pausa de impacto" que quedan: congela la acción un instante en los golpes fuertes. */
+  private pausaGolpe = 0;
+  /** Curación de la Savia de roble disponible (se rellena hasta 4 por segundo). */
+  private saviaDisponible = 4;
   private amuletoUsado = false;
   private tienda = { ofertas: [] as IdArticulo[], cambios: 0, compradas: {} as Partial<Record<IdArticulo, number>> };
   /** Diario de la partida (lo lee el bot de pruebas). */
@@ -161,6 +175,7 @@ export class Juego extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.limpiar());
 
     this.scene.launch('Hud');
+    this.sonido.ponerPista('combate');
     this.sonido.intensidad(0.3);
   }
 
@@ -193,6 +208,8 @@ export class Juego extends Phaser.Scene {
       cargas: this.arsenal?.cargas() ?? {},
       reliquias: [...this.extras.reliquias],
       jefe: j ? { nombre: j.def.nombre, vida: Math.max(0, j.vida), vidaMax: j.vidaMax } : null,
+      esquiva: this.jugador.cargaEsquiva(),
+      tiradas: this.tiradas,
     };
   }
 
@@ -219,6 +236,14 @@ export class Juego extends Phaser.Scene {
   private recalcular(): void {
     this.jugador.setAtributos(atributos(this.inv, this.extras));
     this.arsenal.sincronizar(this.inv);
+    this.horda.ejecutar = this.jugador.atrib.ejecutar;
+  }
+
+  /** Congela la acción un instante y sacude la cámara: da peso a los golpes fuertes. */
+  private impacto(segundos: number, sacudida = 0): void {
+    if (this.bot) return;
+    this.pausaGolpe = Math.max(this.pausaGolpe, segundos);
+    if (sacudida > 0) this.efectos.sacudir(sacudida, 110);
   }
 
   /** El jugador eligió una mejora en el panel de subida de nivel. */
@@ -228,6 +253,22 @@ export class Juego extends Phaser.Scene {
     if (id === 'pan') this.jugador.curar(30);
     if (id === 'aceite') this.jugador.aceite = ACEITE_MAX;
     this.recalcular();
+    this.pendientes--;
+    this.eligiendo = false;
+    this.congelar(false);
+  }
+
+  /** Cambia las mejoras ofrecidas por otras (unas pocas veces por noche). */
+  volverATirar(): Opcion[] | null {
+    if (!this.eligiendo || this.tiradas <= 0) return null;
+    this.tiradas--;
+    return ofrecer(this.inv, this.rng, 3);
+  }
+
+  /** Sigue sin elegir mejora a cambio de unas monedas. */
+  saltar(): void {
+    if (!this.eligiendo) return;
+    this.monedas += MONEDAS_AL_SALTAR;
     this.pendientes--;
     this.eligiendo = false;
     this.congelar(false);
@@ -266,7 +307,7 @@ export class Juego extends Phaser.Scene {
     this.enTienda = true;
     this.congelar(true);
     this.tienda.cambios = 0;
-    this.tienda.ofertas = ofrecerArticulos(this.rng, this.extras.reliquias, this.puedeForjar());
+    this.tienda.ofertas = ofrecerArticulos(this.rng, this.extras.reliquias, this.puedeForjar(), 4, this.personaje.id);
     if (this.bot) {
       // Compra reliquias que alcance (las más caras primero) y se va.
       for (const o of [...this.datosTienda.ofertas].sort((a, b) => b.precio - a.precio)) {
@@ -316,7 +357,7 @@ export class Juego extends Phaser.Scene {
     if (this.monedas < p) return { ok: false, mensaje: `Te faltan ${p - this.monedas} monedas` };
     this.monedas -= p;
     this.tienda.cambios++;
-    this.tienda.ofertas = ofrecerArticulos(this.rng, this.extras.reliquias, this.puedeForjar());
+    this.tienda.ofertas = ofrecerArticulos(this.rng, this.extras.reliquias, this.puedeForjar(), 4, this.personaje.id);
     return { ok: true, mensaje: 'Nuevos objetos a la venta' };
   }
 
@@ -342,6 +383,10 @@ export class Juego extends Phaser.Scene {
       return;
     }
     const dt = Math.min(deltaMs / 1000, 1 / 20);
+    if (this.pausaGolpe > 0) {
+      this.pausaGolpe -= dt;
+      return;
+    }
     const antes = this.tiempo;
     this.tiempo += dt;
     const j = this.jugador;
@@ -351,8 +396,15 @@ export class Juego extends Phaser.Scene {
     const v = control?.vector() ?? { x: 0, y: 0 };
     const atacando = control?.atacando() ?? false;
     const angulo = this.anguloApunte();
-    if (atacando) j.mirando = Math.cos(angulo) >= 0 ? 1 : -1;
+    if (control?.pedirEsquiva()) {
+      // Hacia donde te mueves; quieto, hacia donde apuntas.
+      const quieto = Math.hypot(v.x, v.y) < 0.1;
+      if (j.esquivar(quieto ? Math.cos(angulo) : v.x, quieto ? Math.sin(angulo) : v.y)) this.sonido.reproducir('esquiva', 0.55);
+    }
+    this.controles?.setCargaEsquiva(j.cargaEsquiva());
+    if (atacando && !j.esquivando) j.mirando = Math.cos(angulo) >= 0 ? 1 : -1;
     j.actualizar(dt, v.x, v.y, atacando);
+    this.saviaDisponible = Math.min(4, this.saviaDisponible + 4 * dt);
     const cam = this.cameras.main;
     const k = 1 - Math.pow(0.0005, dt);
     cam.centerOn(Phaser.Math.Linear(cam.midPoint.x, j.x, k), Phaser.Math.Linear(cam.midPoint.y, j.y - 8, k));
@@ -360,7 +412,8 @@ export class Juego extends Phaser.Scene {
 
     this.aparecer(dt, antes);
     this.horda.actualizar(dt, j, (d, quien) => this.alRecibirGolpe(d, quien));
-    this.arsenal.actualizar(dt, atacando, angulo);
+    const farolLleno = j.atrib.bonoFarolLleno > 0 && j.aceite > ACEITE_MAX / 2;
+    this.arsenal.actualizar(dt, atacando, angulo, farolLleno ? j.atrib.bonoFarolLleno : 0);
     this.procesarMuertes();
     this.objetos.actualizar(dt, j, (tipo, valor, x, y) => this.recoger(tipo, valor, x, y));
     if (dibujar) this.dibujarLuces();
@@ -398,7 +451,8 @@ export class Juego extends Phaser.Scene {
     } else {
       this.sonido.reproducir('dano');
       this.efectos.numero(j.x, j.y - 16, d, CSS.sangre);
-      this.efectos.sacudir(0.003, 90);
+      this.efectos.sacudir(0.004, 100);
+      this.impacto(0.05);
     }
     if (quien && j.atrib.espinas > 0) this.horda.herir(quien, j.atrib.espinas, (quien.x - j.x) * 2, (quien.y - j.y) * 2, CSS.gris);
   }
@@ -476,6 +530,13 @@ export class Juego extends Phaser.Scene {
     for (const m of muertes) {
       const def = m.e.def;
       this.bajas++;
+      // Derribar a un enemigo grande se siente: la acción se detiene un instante.
+      if (def.jefe) this.impacto(0.16, 0.008);
+      else if (m.e.vidaMax >= 150) this.impacto(0.045, 0.003);
+      if (this.jugador.atrib.curarAlDerribar > 0 && this.saviaDisponible >= 1) {
+        this.saviaDisponible -= 1;
+        this.jugador.curar(this.jugador.atrib.curarAlDerribar);
+      }
       if (def.tipo === 'ciervo') {
         this.terminar(true);
         return;
@@ -504,7 +565,7 @@ export class Juego extends Phaser.Scene {
       this.sonido.reproducir('gema', 0.5);
     } else if (tipo === 'moneda') {
       this.monedas += valor;
-      this.sonido.reproducir('gema', 0.35);
+      this.sonido.reproducir('moneda', 0.7);
     } else if (tipo === 'aceite') {
       j.aceite = Math.min(ACEITE_MAX, j.aceite + 40);
       this.sonido.reproducir('aceite');

@@ -1,10 +1,37 @@
 /**
- * Efectos y música sintetizados en el momento con Web Audio: el juego no carga
- * ningún archivo de sonido. Si el navegador no tiene audio, todo queda en silencio.
+ * Sonido del juego con Web Audio.
+ * - Algunos efectos y la música son grabaciones con licencia CC0 (ver `public/sonidos/CREDITOS.md`).
+ *   Se cargan en segundo plano al primer toque; mientras tanto, o si el navegador no
+ *   puede leerlas, se usa el sonido sintetizado de siempre.
+ * - El resto de efectos se sintetizan en el momento.
+ * Si el navegador no tiene audio, todo queda en silencio.
  */
 type AjustesSonido = { sonido: boolean; musica: boolean };
 
-export type Efecto = 'golpe'|'muerte'|'gema'|'nivel'|'dano'|'tajo'|'daga'|'campana'|'runa'|'boton'|'aceite'|'cofre'|'victoria'|'derrota'|'jefe';
+export type Efecto = 'golpe'|'muerte'|'gema'|'nivel'|'dano'|'tajo'|'daga'|'campana'|'runa'|'boton'|'aceite'|'cofre'|'victoria'|'derrota'|'jefe'|'esquiva'|'moneda';
+
+/** Pistas de música: una tranquila para el menú y otra para la noche. */
+export type Pista = 'menu' | 'combate';
+
+/** Grabaciones de cada efecto (se elige una al azar para que no suene siempre igual) y su volumen. */
+const MUESTRAS: Partial<Record<Efecto, { archivos: string[]; volumen: number }>> = {
+  tajo: { archivos: ['tajo1', 'tajo2'], volumen: 0.55 },
+  daga: { archivos: ['daga2', 'daga3'], volumen: 0.5 },
+  golpe: { archivos: ['golpe'], volumen: 0.45 },
+  esquiva: { archivos: ['esquiva1', 'esquiva2', 'esquiva3'], volumen: 0.9 },
+  boton: { archivos: ['boton'], volumen: 0.7 },
+  cofre: { archivos: ['cofre'], volumen: 0.7 },
+  moneda: { archivos: ['moneda'], volumen: 0.5 },
+};
+
+/** Volumen de cada pista (ya vienen igualadas a la misma sonoridad). */
+const VOLUMEN_PISTA: Record<Pista, number> = { menu: 0.5, combate: 0.32 };
+
+/** Carpeta de los sonidos, respetando la ruta base con la que se publica el juego. */
+function rutaSonidos(): string {
+  const base = (import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? '/';
+  return `${base}sonidos/`;
+}
 
 type Voz = { nodos: AudioNode[]; fin: number };
 
@@ -25,6 +52,12 @@ export class Sonido {
   private gananciaDron: GainNode | null = null;
   private filtroDron: BiquadFilterNode | null = null;
   private intensidadActual = 0.5;
+  // Grabaciones
+  private muestras = new Map<string, AudioBuffer>();
+  private pistas = new Map<Pista, AudioBuffer>();
+  private cargaIniciada = false;
+  private pistaDeseada: Pista = 'menu';
+  private pistaSonando: { pista: Pista; fuente: AudioBufferSourceNode; ganancia: GainNode } | null = null;
 
   constructor(ajustes: AjustesSonido) {
     this.habilitadoSonido = ajustes.sonido;
@@ -40,6 +73,7 @@ export class Sonido {
       if (!this.contexto) {
         this.contexto = new ConstructorAudio();
         this.configurarAudio();
+        this.cargarGrabaciones();
       }
       // resume() es asíncrono: la música solo puede arrancar cuando el contexto ya corre.
       if (this.contexto.state === 'suspended') {
@@ -62,7 +96,127 @@ export class Sonido {
   setMusica(on: boolean): void {
     this.habilitadaMusica = on;
     if (on) this.musicaIniciar();
-    else this.musicaDetener();
+    else {
+      this.musicaDetener();
+      this.detenerPista();
+    }
+  }
+
+  /** Elige qué música suena: la del menú o la de la noche. Cambia con un fundido. */
+  ponerPista(pista: Pista): void {
+    this.pistaDeseada = pista;
+    this.actualizarPista();
+  }
+
+  /** Descarga las grabaciones en segundo plano. Prueba OGG y, si el navegador no lo lee, MP3. */
+  private cargarGrabaciones(): void {
+    if (this.cargaIniciada || typeof fetch === 'undefined') return;
+    this.cargaIniciada = true;
+    const leer = async (nombre: string): Promise<AudioBuffer | null> => {
+      for (const ext of ['ogg', 'mp3']) {
+        try {
+          const r = await fetch(`${rutaSonidos()}${nombre}.${ext}`);
+          if (!r.ok || !this.contexto) continue;
+          return await this.contexto.decodeAudioData(await r.arrayBuffer());
+        } catch {
+          // Formato no soportado: se prueba el siguiente.
+        }
+      }
+      return null;
+    };
+    const efectos = [...new Set(Object.values(MUESTRAS).flatMap((m) => m!.archivos))];
+    void Promise.all(
+      efectos.map(async (n) => {
+        const b = await leer(n);
+        if (b) this.muestras.set(n, b);
+      }),
+    ).then(async () => {
+      // La música pesa más: se carga después de los efectos, primero la que toca ahora.
+      const orden: Pista[] = this.pistaDeseada === 'menu' ? ['menu', 'combate'] : ['combate', 'menu'];
+      for (const p of orden) {
+        const b = await leer(`musica-${p}`);
+        if (b) {
+          this.pistas.set(p, b);
+          this.actualizarPista();
+        }
+      }
+    });
+  }
+
+  /** Hace sonar la pista deseada si ya está cargada; mientras tanto suena la música sintetizada. */
+  private actualizarPista(): void {
+    const contexto = this.contexto;
+    if (!contexto || contexto.state !== 'running') return;
+    if (!this.habilitadaMusica) return;
+    const buffer = this.pistas.get(this.pistaDeseada);
+    if (!buffer) return;
+    if (this.pistaSonando?.pista === this.pistaDeseada) return;
+    try {
+      // La grabación sustituye al dron sintetizado.
+      this.musicaDetener();
+      this.detenerPista();
+      const ahora = contexto.currentTime;
+      const ganancia = contexto.createGain();
+      ganancia.gain.setValueAtTime(0.0001, ahora);
+      ganancia.gain.exponentialRampToValueAtTime(this.volumenPista(this.pistaDeseada), ahora + 1.5);
+      ganancia.connect(contexto.destination);
+      const fuente = contexto.createBufferSource();
+      fuente.buffer = buffer;
+      fuente.loop = true;
+      fuente.connect(ganancia);
+      fuente.start(ahora);
+      this.pistaSonando = { pista: this.pistaDeseada, fuente, ganancia };
+    } catch {
+      this.pistaSonando = null;
+    }
+  }
+
+  private volumenPista(p: Pista): number {
+    // En la noche, la música sube un poco cuando aprieta (jefes, final).
+    return VOLUMEN_PISTA[p] * (p === 'combate' ? 0.8 + this.intensidadActual * 0.35 : 1);
+  }
+
+  private detenerPista(): void {
+    const s = this.pistaSonando;
+    const contexto = this.contexto;
+    this.pistaSonando = null;
+    if (!s || !contexto) return;
+    try {
+      const ahora = contexto.currentTime;
+      s.ganancia.gain.cancelScheduledValues(ahora);
+      s.ganancia.gain.setValueAtTime(Math.max(0.0001, s.ganancia.gain.value), ahora);
+      s.ganancia.gain.exponentialRampToValueAtTime(0.0001, ahora + 1.2);
+      s.fuente.stop(ahora + 1.3);
+      setTimeout(() => this.desconectar([s.fuente, s.ganancia]), 1500);
+    } catch {
+      // Ya estaba detenida.
+    }
+  }
+
+  /** Reproduce una grabación del efecto si está cargada. Devuelve false si no hay. */
+  private reproducirMuestra(nombre: Efecto, volumen: number, ahora: number): boolean {
+    const def = MUESTRAS[nombre];
+    const contexto = this.contexto;
+    const salida = this.maestroEfectos;
+    if (!def || !contexto || !salida) return false;
+    const cargadas = def.archivos.map((a) => this.muestras.get(a)).filter((b): b is AudioBuffer => b !== undefined);
+    if (cargadas.length === 0) return false;
+    try {
+      const buffer = cargadas[Math.floor(Math.random() * cargadas.length)]!;
+      const fuente = contexto.createBufferSource();
+      const ganancia = contexto.createGain();
+      fuente.buffer = buffer;
+      // Un tono ligeramente distinto cada vez, para que no canse.
+      fuente.playbackRate.value = 0.92 + Math.random() * 0.16;
+      ganancia.gain.value = Math.max(0, Math.min(1, volumen)) * def.volumen;
+      fuente.connect(ganancia);
+      ganancia.connect(salida);
+      fuente.start(ahora);
+      this.voces.push({ nodos: [fuente, ganancia], fin: ahora + buffer.duration + 0.1 });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   reproducir(nombre: Efecto, volumen = 1): void {
@@ -77,6 +231,7 @@ export class Sonido {
 
     this.voces = this.voces.filter((voz) => voz.fin > ahora);
     if (this.voces.length >= 24) return;
+    if (this.reproducirMuestra(nombre, volumen, ahora)) return;
 
     let tono = 0;
     if (nombre === 'gema') {
@@ -137,6 +292,11 @@ export class Sonido {
   }
 
   musicaIniciar(): void {
+    // Si la grabación de la pista ya está lista, suena ella en lugar del dron sintetizado.
+    if (this.habilitadaMusica && this.pistas.has(this.pistaDeseada)) {
+      this.actualizarPista();
+      return;
+    }
     if (!this.habilitadaMusica || !this.contexto || this.musicaActiva) return;
     const contexto = this.contexto;
     if (contexto.state !== 'running') return;
@@ -226,6 +386,14 @@ export class Sonido {
   intensidad(valor: number): void {
     this.intensidadActual = Math.max(0, Math.min(1, Number.isFinite(valor) ? valor : 0));
     const contexto = this.contexto;
+    const s = this.pistaSonando;
+    if (contexto && s) {
+      try {
+        s.ganancia.gain.setTargetAtTime(this.volumenPista(s.pista), contexto.currentTime, 0.5);
+      } catch {
+        // Sin cambio de volumen.
+      }
+    }
     const filtro = this.filtroDron;
     const ganancia = this.gananciaDron;
     if (!contexto || !filtro || !ganancia) return;
@@ -288,6 +456,8 @@ export class Sonido {
       case 'victoria': return { frecuencia: 392, finalFrecuencia: 784, tipo: 'triangle' };
       case 'derrota': return { frecuencia: 240, finalFrecuencia: 55, tipo: 'sawtooth' };
       case 'jefe': return { frecuencia: 70, finalFrecuencia: 38, tipo: 'sawtooth', ruido: true, corte: 800 };
+      case 'esquiva': return { frecuencia: 620, finalFrecuencia: 1500, tipo: 'sine', ruido: true, filtro: 'highpass', corte: 2200 };
+      case 'moneda': return { frecuencia: 990, finalFrecuencia: 1320, tipo: 'sine' };
     }
   }
 
@@ -300,6 +470,7 @@ export class Sonido {
       case 'cofre':
         return 0.65;
       case 'gema':
+      case 'moneda':
       case 'campana':
       case 'runa':
         return 0.42;
@@ -310,6 +481,7 @@ export class Sonido {
       case 'boton':
       case 'aceite':
       case 'jefe':
+      case 'esquiva':
         return 0.24;
     }
   }

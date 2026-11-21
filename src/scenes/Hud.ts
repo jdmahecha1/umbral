@@ -5,10 +5,10 @@ import { Controles } from '../game/controles';
 import { actualizarTexto } from '../game/texto';
 import { DURACION } from '../logic/enemigos';
 import { formatoTiempo, guardarAjustes, leerAjustes, leerRecords } from '../logic/guardado';
-import type { IdArma, IdMejora, Opcion } from '../logic/mejoras';
+import { maxNivel, type IdArma, type IdMejora, type Opcion } from '../logic/mejoras';
 import { RAREZAS, type Rareza } from '../logic/rareza';
 import { ARTICULOS, type IdArticulo } from '../logic/tienda';
-import type { Estado, Fin, Juego, Tienda } from './Juego';
+import { MONEDAS_AL_SALTAR, type Estado, type Fin, type Juego, type Tienda } from './Juego';
 import { boton, navegarConTeclado, panel, texto, unidad, type Boton, type Guardia } from './ui';
 
 /** Tiempo en que un panel recién abierto no acepta clics ni teclas (evita elegir sin querer). */
@@ -38,6 +38,8 @@ export class Hud extends Phaser.Scene {
   private avisoTxt!: Phaser.GameObjects.Text;
   private iconos: Phaser.GameObjects.GameObject[] = [];
   private ranurasArmas: { id: IdArma; x: number; y: number; tam: number }[] = [];
+  /** Ranura de la esquiva en el HUD (solo en PC: en el celular tiene su botón). */
+  private ranuraEsquiva: { x: number; y: number; tam: number } | null = null;
   private firmaInventario = '';
   private capa: Phaser.GameObjects.Container | null = null;
   private soltarTeclado: (() => void) | null = null;
@@ -102,6 +104,17 @@ export class Hud extends Phaser.Scene {
       this.input.setDefaultCursor('default');
     });
     this.colocar();
+    // En las primeras partidas se enseña la esquiva.
+    if (leerRecords().partidas < 3) {
+      const tactil = this.sys.game.device.input.touch;
+      this.time.delayedCall(12000, () =>
+        this.consejo(
+          tactil
+            ? 'Consejo: toca el botón pequeño junto al de ataque para esquivar. Mientras esquivas, nada te hace daño.'
+            : 'Consejo: esquiva con Shift o con el clic derecho. Mientras esquivas, nada te hace daño.',
+        ),
+      );
+    }
     // En las primeras partidas se avisa de que existe el ataque automático.
     if (!leerAjustes().autoataque && leerRecords().partidas < 3) {
       const tactil = this.sys.game.device.input.touch;
@@ -219,6 +232,8 @@ export class Hud extends Phaser.Scene {
       const c = e.cargas[r.id] ?? 1;
       if (c < 1) g.fillStyle(0x07050c, 0.7).fillRect(r.x - r.tam / 2, r.y - r.tam / 2, r.tam, r.tam * (1 - c));
     }
+    const re = this.ranuraEsquiva;
+    if (re && e.esquiva < 1) g.fillStyle(0x07050c, 0.7).fillRect(re.x - re.tam / 2, re.y - re.tam / 2, re.tam, re.tam * (1 - e.esquiva));
   }
 
   private barra(x: number, y: number, w: number, h: number, p: number, color: number, brillo: number): void {
@@ -232,7 +247,8 @@ export class Hud extends Phaser.Scene {
   }
 
   private dibujarInventario(e: Estado): void {
-    const firma = JSON.stringify([e.inventario, e.reliquias, this.scale.width, this.scale.height]);
+    const tactil = this.juego.controles?.usandoTactil ?? false;
+    const firma = JSON.stringify([e.inventario, e.reliquias, this.scale.width, this.scale.height, tactil]);
     if (firma === this.firmaInventario) return;
     this.firmaInventario = firma;
     for (const o of this.iconos) o.destroy();
@@ -258,6 +274,14 @@ export class Hud extends Phaser.Scene {
       this.ranurasArmas.push({ id, x, y: yArmas + tam / 2, tam });
     });
     Object.entries(e.inventario.pasivas).forEach(([id, n], i) => ranura(id, m + i * (tam + sep) + tam / 2, yPasivas + tam / 2, tam, n));
+    // La esquiva, a la derecha de las armas, con su tecla (en el celular tiene su propio botón).
+    this.ranuraEsquiva = null;
+    if (!tactil) {
+      const x = m + 4 * (tam + sep) + sep + tam / 2;
+      ranura('esquiva', x, yArmas + tam / 2, tam);
+      this.iconos.push(texto(this, x + tam / 2 + 4 * u, yArmas + tam / 2, 'Shift', 9 * u, CSS.gris).setOrigin(0, 0.5));
+      this.ranuraEsquiva = { x, y: yArmas + tam / 2, tam };
+    }
     const chica = Math.round(16 * u);
     e.reliquias.forEach((id, i) => ranura(id, m + i * (chica + 4 * u) + chica / 2, yArmas - sep - chica / 2, chica));
   }
@@ -359,8 +383,10 @@ export class Hud extends Phaser.Scene {
     return { boton: { cont: capa, etiqueta: titulo, fondo, pulsar, resaltar }, alto, grupo };
   }
 
-  private mostrarEleccion(opciones: Opcion[]): void {
+  private mostrarEleccion(opciones: Opcion[], redibujar = false): void {
     const capa = this.abrirCapa();
+    // Al volver a tirar se redibuja: un bloqueo breve evita elegir con el mismo clic.
+    if (redibujar) this.abiertaEn = performance.now() - BLOQUEO_MS + 250;
     const { width: w, height: h } = this.scale;
     const u = this.u;
     const ancho = Math.min(w - 24, 420 * u);
@@ -368,13 +394,20 @@ export class Hud extends Phaser.Scene {
     const tituloY = Math.max(16 * u, h * 0.06);
     capa.add(texto(this, w / 2, tituloY, '¡Subes de nivel!', 22 * u, CSS.ambarClaro, 'titulo').setOrigin(0.5, 0));
     capa.add(texto(this, w / 2, tituloY + 30 * u, 'Elige una mejora (clic, toque o teclas 1, 2 y 3)', 12 * u, CSS.gris).setOrigin(0.5, 0));
+    // Las armas llegan hasta el nivel 8: hay espacio para probar combinaciones distintas cada noche.
 
     let y = tituloY + 58 * u;
     const tarjetas: Boton[] = [];
     const grupos: Phaser.GameObjects.Container[] = [];
     opciones.forEach((op, i) => {
       const etiqueta =
-        op.tipo === 'consumible' ? 'Al momento' : op.nivel === 1 ? (op.tipo === 'arma' ? 'Arma nueva' : 'Nueva') : `Nivel ${op.nivel} de 5`;
+        op.tipo === 'consumible'
+          ? 'Al momento'
+          : op.nivel === 1
+            ? op.tipo === 'arma'
+              ? 'Arma nueva'
+              : 'Nueva'
+            : `Nivel ${op.nivel} de ${maxNivel(op.id)}`;
       const { boton: b, alto, grupo } = this.tarjeta(
         capa,
         w / 2,
@@ -399,10 +432,44 @@ export class Hud extends Phaser.Scene {
       grupos.push(grupo);
       y += alto + sep;
     });
+    // Más libertad: cambiar las opciones (pocas veces por noche) o seguir sin elegir a cambio de monedas.
+    const tiradas = this.juego.estado.tiradas;
+    const anchoB = (ancho - sep) / 2;
+    const yB = y + 8 * u + 17 * u;
+    const tirar = boton(
+      this,
+      w / 2 - anchoB / 2 - sep / 2,
+      yB,
+      anchoB,
+      tiradas > 0 ? `Volver a tirar (${tiradas})` : 'Sin tiradas',
+      () => {
+        const nuevas = this.juego.volverATirar();
+        if (nuevas) this.mostrarEleccion(nuevas, true);
+      },
+      u,
+      this.guardia,
+    );
+    if (tiradas <= 0) tirar.cont.setAlpha(0.45);
+    const saltar = boton(
+      this,
+      w / 2 + anchoB / 2 + sep / 2,
+      yB,
+      anchoB,
+      `Saltar (+${MONEDAS_AL_SALTAR} monedas)`,
+      () => {
+        this.cerrarCapa();
+        this.juego.saltar();
+      },
+      u,
+      this.guardia,
+    );
+    for (const b of [tirar, saltar]) b.etiqueta.setFontSize(Math.round(12 * u));
+    capa.add([tirar.cont, saltar.cont]);
+    y = yB + 17 * u + sep;
     // Si no cabe en pantallas muy bajas, se reduce todo el bloque.
     const alto = y - sep;
     if (alto > h - 8) capa.setScale((h - 8) / alto).setPosition((w - w * ((h - 8) / alto)) / 2, 0);
-    this.soltarTeclado = navegarConTeclado(this, tarjetas, 0, { guardia: this.guardia, espacio: false });
+    this.soltarTeclado = navegarConTeclado(this, [...tarjetas, tirar, saltar], 0, { guardia: this.guardia, espacio: false });
     const numeros = (ev: KeyboardEvent) => {
       const n = Number(ev.key);
       if (ev.repeat || !this.guardia()) return;
@@ -414,7 +481,13 @@ export class Hud extends Phaser.Scene {
       soltar();
       this.input.keyboard?.off('keydown', numeros);
     };
-    this.entrada(capa, grupos);
+    if (redibujar) for (const g of grupos) g.setAlpha(0.45);
+    else this.entrada(capa, grupos);
+    if (redibujar) {
+      this.time.delayedCall(250, () => {
+        if (this.capa === capa) for (const g of grupos) this.tweens.add({ targets: g, alpha: 1, duration: 120 });
+      });
+    }
   }
 
   /**

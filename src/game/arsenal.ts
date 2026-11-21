@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { COLOR, CSS } from '../art/paleta';
 import type { Sonido } from '../audio/sonido';
 import { enCono, recargaBase, statsCampana, statsDagas, statsHoz, statsLlamarada, statsRunas } from '../logic/armas';
+import { LIMITES } from '../logic/mejoras';
 import type { IdArma, Inventario } from '../logic/mejoras';
 import type { Efectos } from './efectos';
 import type { Horda } from './horda';
@@ -378,8 +379,10 @@ export class Arsenal {
     }
   }
 
-  actualizar(dt: number, atacando: boolean, angulo: number): void {
-    const { dano, enfriamiento } = this.c.jugador.atrib;
+  /** `bono` suma daño momentáneo (Farol de vidrio soplado); el total respeta el tope de daño. */
+  actualizar(dt: number, atacando: boolean, angulo: number, bono = 0): void {
+    const { enfriamiento } = this.c.jugador.atrib;
+    const dano = Math.min(this.c.jugador.atrib.dano * (1 + bono), LIMITES.dano);
     for (const a of this.armas.values()) a.actualizar(dt, atacando, angulo, dano, enfriamiento);
   }
 

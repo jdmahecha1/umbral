@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { CSS } from '../art/paleta';
 import { recolorear } from '../art/sprites';
 import { RAIZON } from '../art/grandes';
 import { registrarSprite } from '../art/texturas';
@@ -24,6 +25,9 @@ export interface Enemigo {
   ky: number;
   edad: number;
   destello: number;
+  /** Escala normal del sprite y tiempo que le queda al "aplastón" del último golpe. */
+  escala: number;
+  golpe: number;
   /** Temporizador genérico: disparos, embestidas, invocaciones. */
   reloj: number;
   /** Estado del jefe: 0 andar, 1 preparar, 2 embestir. */
@@ -49,6 +53,9 @@ export interface Muerte {
 }
 
 /** Todos los enemigos vivos: aparición, movimiento, choques, daño y muertes. */
+/** Segundos que dura el aplastón de un enemigo al recibir un golpe. */
+const GOLPE = 0.1;
+
 export class Horda {
   readonly lista: Enemigo[] = [];
   private libres: Enemigo[] = [];
@@ -100,6 +107,8 @@ export class Horda {
         ky: 0,
         edad: 0,
         destello: 0,
+        escala: 1,
+        golpe: 0,
         reloj: 0,
         fase: 0,
         dx: 0,
@@ -108,9 +117,10 @@ export class Horda {
       this.lista.push(e);
     }
     const vida = Math.round(def.vida * (def.jefe ? 1 : multVida(t)));
-    Object.assign(e, { uid: this.siguienteUid++, activo: true, def, x, y, vida, vidaMax: vida, kx: 0, ky: 0, edad: 0, destello: 0, reloj: 1 + Math.random() * 2, fase: 0 });
+    Object.assign(e, { uid: this.siguienteUid++, activo: true, def, x, y, vida, vidaMax: vida, kx: 0, ky: 0, edad: 0, destello: 0, golpe: 0, reloj: 1 + Math.random() * 2, fase: 0 });
     e.spr.setTexture(tipo, '0').setVisible(true).setActive(true).setAlpha(1).clearTint().setTintMode(Phaser.TintModes.MULTIPLY);
-    e.spr.setScale(tipo === 'guardian' ? 1.5 : tipo === 'ciervo' ? 1.6 : 1);
+    e.escala = tipo === 'guardian' ? 1.5 : tipo === 'ciervo' ? 1.6 : 1;
+    e.spr.setScale(e.escala);
     if (this.escena.anims.exists(tipo)) e.spr.play({ key: tipo, startFrame: Math.floor(Math.random() * 2) });
     if (def.jefe) this.jefe = e;
     this.vivos++;
@@ -225,6 +235,12 @@ export class Horda {
         e.destello -= dt;
         if (e.destello <= 0) e.spr.clearTint().setTintMode(Phaser.TintModes.MULTIPLY);
       }
+      // Al recibir un golpe se ensancha y se aplasta un instante: se siente el impacto.
+      if (e.golpe > 0) {
+        e.golpe = Math.max(0, e.golpe - dt);
+        const k = e.golpe / GOLPE;
+        e.spr.setScale(e.escala * (1 + 0.28 * k), e.escala * (1 - 0.2 * k));
+      }
       const mira = e.def.tipo === 'ciervo' && e.fase === 2 ? e.dx : j.x - e.x;
       e.spr.setPosition(e.x, e.y).setFlipX(mira < 0);
       const prof = Math.floor(e.y);
@@ -292,12 +308,21 @@ export class Horda {
     }
   }
 
+  /** Los enemigos normales por debajo de esta fracción de vida mueren al golpe (Hacha del verdugo). */
+  ejecutar = 0;
+
   /** Hace daño a un enemigo y lo empuja en la dirección (kx, ky). */
   herir(e: Enemigo, dano: number, kx = 0, ky = 0, color?: string): void {
     if (!e.activo) return;
     e.vida -= dano;
-    e.kx += kx * e.def.peso;
-    e.ky += ky * e.def.peso;
+    if (this.ejecutar > 0 && !e.def.jefe && e.vida > 0 && e.vida < e.vidaMax * this.ejecutar) {
+      e.vida = 0;
+      color = CSS.sangre;
+    }
+    // Empuje algo más fuerte que antes: los golpes se notan (los jefes casi no se mueven por su peso).
+    e.kx += kx * e.def.peso * 1.25;
+    e.ky += ky * e.def.peso * 1.25;
+    if (!e.def.jefe) e.golpe = GOLPE;
     if (e.def.tipo !== 'ciervo' || e.fase !== 1) {
       e.destello = 0.07;
       e.spr.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);

@@ -6,17 +6,26 @@ const ZONA_MUERTA = 0.15;
 
 /**
  * Movimiento y ataque.
- * - PC: WASD o flechas para moverse; clic izquierdo (o espacio) para atacar hacia el cursor.
- * - Móvil: joystick flotante en la mitad izquierda y botón de ataque abajo a la derecha.
+ * - PC: WASD o flechas para moverse; clic izquierdo (o espacio) para atacar hacia el cursor;
+ *   Shift o clic derecho para esquivar.
+ * - Móvil: joystick flotante en la mitad izquierda, botón de ataque abajo a la derecha y,
+ *   a su lado, el de esquivar.
  */
 export class Controles {
   private readonly teclado: Phaser.Input.Keyboard.KeyboardPlugin | null;
   private readonly teclas: Phaser.Input.Keyboard.Key[] = [];
   private readonly espacio: Phaser.Input.Keyboard.Key | null = null;
+  private readonly shift: Phaser.Input.Keyboard.Key | null = null;
   private readonly base: Phaser.GameObjects.Graphics;
   private readonly mando: Phaser.GameObjects.Graphics;
   private readonly boton: Phaser.GameObjects.Graphics;
   private readonly botonIcono: Phaser.GameObjects.Image;
+  private readonly botonEsquiva: Phaser.GameObjects.Graphics;
+  private readonly iconoEsquiva: Phaser.GameObjects.Image;
+  /** Carga de la esquiva (0..1) para dibujar su botón táctil. */
+  private carga = 1;
+  /** Se pidió esquivar (clic derecho o toque) y aún no se atendió. */
+  private pidioEsquiva = false;
 
   private bloqueado = false;
   // Joystick táctil
@@ -46,6 +55,9 @@ export class Controles {
       for (const k of [K.W, K.A, K.S, K.D]) this.teclas.push(this.teclado.addKey(k, false));
       for (const k of [K.UP, K.LEFT, K.DOWN, K.RIGHT]) this.teclas.push(this.teclado.addKey(k, true));
       this.espacio = this.teclado.addKey(K.SPACE, true);
+      this.shift = this.teclado.addKey(K.SHIFT, true);
+      // Se escucha el evento (y no el estado de la tecla) para no perder pulsaciones muy rápidas.
+      this.teclado.on('keydown-SHIFT', this.alShift, this);
     }
     this.capaUI.input.mouse?.disableContextMenu();
     this.tactil = this.capaUI.sys.game.device.input.touch;
@@ -55,6 +67,8 @@ export class Controles {
     this.mando = capaUI.add.graphics().setDepth(20000).setVisible(false);
     this.boton = capaUI.add.graphics().setDepth(20000);
     this.botonIcono = capaUI.add.image(0, 0, 'icono-hoz').setDepth(20001);
+    this.botonEsquiva = capaUI.add.graphics().setDepth(20000);
+    this.iconoEsquiva = capaUI.add.image(0, 0, 'icono-esquiva').setDepth(20001);
     this.dibujarBoton();
 
     capaUI.input.on('pointerdown', this.alBajar, this);
@@ -73,7 +87,46 @@ export class Controles {
     return { x: w - r - Math.round(22 * u), y: h - r - Math.round(26 * u), r };
   }
 
+  /** El botón de esquivar va a la izquierda del de ataque, algo más pequeño. */
+  private geometriaEsquiva(): { x: number; y: number; r: number } {
+    const b = this.geometriaBoton();
+    const r = Math.round(b.r * 0.7);
+    return { x: b.x - b.r - r - Math.round(b.r * 0.35), y: b.y + Math.round(b.r * 0.25), r };
+  }
+
+  private sobreEsquiva(p: Phaser.Input.Pointer): boolean {
+    const { x, y, r } = this.geometriaEsquiva();
+    return Math.hypot(p.x - x, p.y - y) <= r * 1.2;
+  }
+
+  /** La escena avisa de la carga de la esquiva para dibujar su botón. */
+  setCargaEsquiva(c: number): void {
+    const nueva = Math.round(c * 20) / 20;
+    if (nueva === this.carga) return;
+    this.carga = nueva;
+    this.dibujarEsquiva();
+  }
+
+  private dibujarEsquiva(): void {
+    const { x, y, r } = this.geometriaEsquiva();
+    const lista = this.carga >= 1;
+    const g = this.botonEsquiva.clear();
+    g.fillStyle(0x0b0a12, 0.35).fillCircle(x, y, r);
+    const grosor = Math.max(2, Math.round(r / 10));
+    g.lineStyle(grosor, 0xf2eee3, 0.3).strokeCircle(x, y, r);
+    // El borde se va llenando a medida que la esquiva se recarga.
+    if (this.carga > 0) {
+      g.lineStyle(grosor, lista ? 0x7fd1e8 : 0x3f78a8, lista ? 0.9 : 0.7);
+      g.beginPath().arc(x, y, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * this.carga).strokePath();
+    }
+    this.iconoEsquiva.setPosition(x, y).setScale((r * 1.1) / 10).setAlpha(lista ? 0.95 : 0.45);
+    const visible = this.tactil && !this.bloqueado;
+    this.botonEsquiva.setVisible(visible);
+    this.iconoEsquiva.setVisible(visible);
+  }
+
   private dibujarBoton(): void {
+    this.dibujarEsquiva();
     const { x, y, r } = this.geometriaBoton();
     const pulsado = this.dedoAtacar !== null;
     this.boton.clear();
@@ -97,6 +150,11 @@ export class Controles {
     if (this.capaUI.input.hitTestPointer(p).length > 0) return;
     if (p.wasTouch) {
       this.tactil = true;
+      if (this.sobreEsquiva(p)) {
+        this.pidioEsquiva = true;
+        this.dibujar();
+        return;
+      }
       if (!this.autoataque && (this.sobreBoton(p) || p.x > this.capaUI.scale.width * 0.5)) {
         if (this.dedoAtacar === null) this.dedoAtacar = p.id;
       } else if (this.dedoMover === null) {
@@ -109,11 +167,12 @@ export class Controles {
       this.dibujar();
       return;
     }
-    // Ratón: el botón izquierdo ataca.
+    // Ratón: el botón izquierdo ataca y el derecho esquiva.
     this.ratonUsado = true;
     this.ratonX = p.x;
     this.ratonY = p.y;
-    if (p.leftButtonDown()) this.ratonAtacando = true;
+    if (p.rightButtonDown()) this.pidioEsquiva = true;
+    else if (p.leftButtonDown()) this.ratonAtacando = true;
   }
 
   private alMover(p: Phaser.Input.Pointer): void {
@@ -145,6 +204,7 @@ export class Controles {
   }
 
   private readonly soltarTodo = (): void => {
+    this.pidioEsquiva = false;
     this.dedoMover = null;
     this.dedoAtacar = null;
     this.ratonAtacando = false;
@@ -191,6 +251,17 @@ export class Controles {
     return { x: (this.dx / d) * m, y: (this.dy / d) * m };
   }
 
+  private alShift(ev: KeyboardEvent): void {
+    if (!ev.repeat && !this.bloqueado) this.pidioEsquiva = true;
+  }
+
+  /** ¿Pidió esquivar desde la última vez? (Shift, clic derecho o el botón táctil). */
+  pedirEsquiva(): boolean {
+    const pedida = this.pidioEsquiva;
+    this.pidioEsquiva = false;
+    return pedida && !this.bloqueado;
+  }
+
   /** ¿Está el jugador atacando ahora? */
   atacando(): boolean {
     if (this.bloqueado) return false;
@@ -234,7 +305,11 @@ export class Controles {
     this.mando.destroy();
     this.boton.destroy();
     this.botonIcono.destroy();
+    this.botonEsquiva.destroy();
+    this.iconoEsquiva.destroy();
     for (const k of this.teclas) this.teclado?.removeKey(k);
     if (this.espacio) this.teclado?.removeKey(this.espacio);
+    this.teclado?.off('keydown-SHIFT', this.alShift, this);
+    if (this.shift) this.teclado?.removeKey(this.shift);
   }
 }

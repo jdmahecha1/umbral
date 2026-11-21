@@ -82,7 +82,7 @@ describe('experiencia', () => {
 describe('mejoras', () => {
   it('respeta los máximos de armas, pasivas y niveles', () => {
     const inv = {
-      armas: { hoz: 5, dagas: 5, farol: 5, runas: 5, campana: 5 },
+      armas: { hoz: 8, dagas: 8, farol: 8, runas: 8, campana: 8 },
       pasivas: { botas: 5, roble: 5, musgo: 5, iman: 5, filo: 5 },
     };
     expect(Object.keys(inv.armas).length).toBeGreaterThan(MAX_ARMAS);
@@ -96,17 +96,21 @@ describe('mejoras', () => {
     expect(new Set(opciones.map((opcion) => opcion.id)).size).toBe(opciones.length);
 
     const completa = {
-      armas: { hoz: 5, dagas: 5, farol: 5, runas: 5, campana: 5 },
-      pasivas: { botas: 5, roble: 5, musgo: 5, iman: 5, filo: 5, reloj: 5, mecha: 5, coraza: 5 },
+      armas: { hoz: 8, dagas: 8, farol: 8, runas: 8, campana: 8 },
+      pasivas: { botas: 5, roble: 5, musgo: 5, iman: 5, filo: 5, reloj: 5, mecha: 5, coraza: 5, pluma: 5 },
     };
     expect(ofrecer(completa, crearRng(2)).map((opcion) => opcion.id)).toEqual(['pan', 'aceite']);
   });
 
   it('no supera el nivel máximo al aplicar y calcula atributos y daño mínimo', () => {
     const inv = inventarioInicial();
-    inv.armas.hoz = 5;
+    inv.armas.hoz = 8;
     aplicar(inv, 'hoz');
-    expect(inv.armas.hoz).toBe(5);
+    expect(inv.armas.hoz).toBe(8);
+    inv.pasivas.filo = 5;
+    aplicar(inv, 'filo');
+    expect(inv.pasivas.filo).toBe(5);
+    delete inv.pasivas.filo;
 
     inv.pasivas.roble = 2;
     inv.pasivas.botas = 1;
@@ -129,7 +133,7 @@ describe('armas', () => {
   it('acota los niveles fuera del rango', () => {
     for (const stats of [statsHoz, statsDagas, statsLlamarada, statsRunas, statsCampana]) {
       expect(stats(0)).toEqual(stats(1));
-      expect(stats(99)).toEqual(stats(5));
+      expect(stats(99)).toEqual(stats(8));
       expect(stats(-3)).toEqual(stats(1));
     }
   });
@@ -224,7 +228,9 @@ describe('textos de las mejoras', () => {
     const { cambios } = await import('../src/logic/mejoras');
     expect(cambios('hoz', 3)).toEqual(['Espera entre tajos: 0,55 s → 0,5 s', 'Ahora también golpea a los enemigos a tu espalda']);
     expect(cambios('dagas', 2)).toEqual(['Dagas por ataque: 1 → 2', 'Enemigos que atraviesa cada daga: 0 → 1']);
-    expect(cambios('hoz', 1)).toEqual(['Daño: 12', 'Alcance: corto', 'Espera entre tajos: 0,55 s']);
+    expect(cambios('hoz', 1)).toEqual(['Daño: 12', 'Alcance: corto', 'Espera entre tajos: 0,55 s', 'Ancho del tajo: ancho']);
+    // Del nivel 6 al 8 cada subida también cambia algo que se ve.
+    expect(cambios('hoz', 8)).toEqual(['Daño: 25 → 29', 'Ancho del tajo: ancho → muy ancho']);
     expect(cambios('hoz', 4)).toEqual(['Alcance: corto → medio']);
   });
 

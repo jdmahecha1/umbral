@@ -1,8 +1,11 @@
 /**
  * Números de cada arma por nivel. Todas se usan al atacar (clic o botón de
  * ataque) y apuntan hacia el cursor. El índice 0 corresponde al nivel 1.
+ * Del nivel 6 al 8 las subidas son más pequeñas: el nivel 5 ya es fuerte y
+ * así compensa repartir niveles entre varias armas en vez de llenar una sola.
  */
-const n = (nivel: number) => Math.max(1, Math.min(5, nivel)) - 1;
+export const NIVEL_MAX_ARMA = 8;
+const n = (nivel: number) => Math.max(1, Math.min(NIVEL_MAX_ARMA, nivel)) - 1;
 
 export interface StatsHoz {
   dano: number;
@@ -19,10 +22,10 @@ export interface StatsHoz {
 export function statsHoz(nivel: number): StatsHoz {
   const i = n(nivel);
   return {
-    dano: [12, 16, 16, 16, 22][i]!,
-    recarga: [0.55, 0.55, 0.5, 0.5, 0.42][i]!,
-    alcance: i >= 3 ? 40 : 32,
-    angulo: 130,
+    dano: [12, 16, 16, 16, 22, 25, 25, 29][i]!,
+    recarga: [0.55, 0.55, 0.5, 0.5, 0.42, 0.42, 0.39, 0.39][i]!,
+    alcance: i >= 5 ? 44 : i >= 3 ? 40 : 32,
+    angulo: i >= 7 ? 160 : 130,
     atras: i >= 2,
   };
 }
@@ -39,10 +42,10 @@ export interface StatsDagas {
 export function statsDagas(nivel: number): StatsDagas {
   const i = n(nivel);
   return {
-    dano: [9, 9, 13, 13, 14][i]!,
-    recarga: 0.7,
-    cantidad: [1, 2, 2, 3, 4][i]!,
-    atraviesa: [0, 1, 1, 1, 3][i]!,
+    dano: [9, 9, 13, 13, 14, 16, 16, 18][i]!,
+    recarga: i >= 6 ? 0.62 : 0.7,
+    cantidad: [1, 2, 2, 3, 4, 4, 4, 5][i]!,
+    atraviesa: [0, 1, 1, 1, 3, 3, 4, 4][i]!,
     velocidad: 240,
   };
 }
@@ -61,11 +64,11 @@ export interface StatsLlamarada {
 export function statsLlamarada(nivel: number): StatsLlamarada {
   const i = n(nivel);
   return {
-    dano: [10, 10, 15, 15, 24][i]!,
-    recarga: [1.3, 1.3, 1.05, 1.05, 0.95][i]!,
-    alcance: [42, 52, 52, 62, 62][i]!,
-    angulo: 55,
-    luzExtra: [8, 12, 12, 16, 18][i]!,
+    dano: [10, 10, 15, 15, 24, 27, 27, 31][i]!,
+    recarga: [1.3, 1.3, 1.05, 1.05, 0.95, 0.95, 0.88, 0.88][i]!,
+    alcance: [42, 52, 52, 62, 62, 62, 68, 68][i]!,
+    angulo: i >= 7 ? 68 : 55,
+    luzExtra: [8, 12, 12, 16, 18, 20, 20, 22][i]!,
   };
 }
 
@@ -81,10 +84,10 @@ export interface StatsRunas {
 export function statsRunas(nivel: number): StatsRunas {
   const i = n(nivel);
   return {
-    dano: [10, 10, 14, 14, 16][i]!,
-    cantidad: [1, 2, 2, 3, 4][i]!,
-    recarga: 1.5,
-    alcance: [70, 70, 85, 85, 105][i]!,
+    dano: [10, 10, 14, 14, 16, 18, 18, 21][i]!,
+    cantidad: [1, 2, 2, 3, 4, 4, 5, 5][i]!,
+    recarga: i >= 5 ? 1.35 : 1.5,
+    alcance: [70, 70, 85, 85, 105, 105, 112, 120][i]!,
     velocidad: 190,
   };
 }
@@ -99,9 +102,9 @@ export interface StatsCampana {
 export function statsCampana(nivel: number): StatsCampana {
   const i = n(nivel);
   return {
-    dano: [16, 16, 25, 25, 38][i]!,
-    recarga: [3.4, 3.4, 3.4, 2.7, 2.7][i]!,
-    alcance: [62, 78, 78, 78, 104][i]!,
+    dano: [16, 16, 25, 25, 38, 43, 43, 50][i]!,
+    recarga: [3.4, 3.4, 3.4, 2.7, 2.7, 2.7, 2.4, 2.4][i]!,
+    alcance: [62, 78, 78, 78, 104, 110, 110, 118][i]!,
     empuje: 150,
   };
 }

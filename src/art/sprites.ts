@@ -434,12 +434,82 @@ export const ICONOS: Record<string, Mapa> = {
   colmillo: ['00000000', '05555550', '.055550.', '.055540.', '..05540.', '..0540..', '...050..', '...00...'],
   elixir: ['...00...', '..0cc0..', '..0440..', '.004400.', '0llmmll0', '0lllmll0', '0kllllk0', '.0kkkk0.', '..0000..'],
   pergamino: ['.00000000.', '0c555555c0', '.05333350.', '.05555550.', '.05333350.', '.05555550.', '0c555555c0', '.00000000.'],
+  // Pasiva de la esquiva y la propia esquiva (para el HUD)
+  pluma: [
+    '.......00.',
+    '......0230',
+    '.....02320',
+    '....023r0.',
+    '...023r0..',
+    '..023r0...',
+    '.023r0....',
+    '.03r0.....',
+    '0r00......',
+    '00........',
+  ],
+  esquiva: [
+    '....0000..',
+    '..00pqq00.',
+    '.0pq0000..',
+    '0p00..00..',
+    '00.0000q0.',
+    '..0pqqqp0.',
+    '.0q0000...',
+    '0p0.......',
+    '00........',
+  ],
+  // Objetos de personaje
+  cuerno: [
+    '00........',
+    '0c00......',
+    '0cbc000...',
+    '.0cbbbc000',
+    '..0cbbbbc0',
+    '...00bbbc0',
+    '.....0bb0.',
+    '.....0550.',
+    '......00..',
+  ],
+  hacha: [
+    '...0000...',
+    '..045550..',
+    '.04555550.',
+    '.0455b550.',
+    '..0440b0..',
+    '...000b0..',
+    '......0b0.',
+    '.......0b0',
+    '........00',
+  ],
+  savia: [
+    '..00......',
+    '.0ii0.00..',
+    '.0ij00d0..',
+    '..00.0ed0.',
+    '....0eedd0',
+    '....0edddc',
+    '....0dddc0',
+    '.....0cc0.',
+    '......00..',
+  ],
+  cola: [
+    '......000.',
+    '....00ff00',
+    '...0fffcf0',
+    '..0ffcff0.',
+    '.0fcff0...',
+    '0ffff0....',
+    '0555f0....',
+    '05550.....',
+    '.000......',
+  ],
   forja: ['..e....e..', '.e..ee..e.', '.000000000', '0uvvvvvvu0', '.0uuuuuu0.', '...0uu0...', '..0uuuu0..', '.0uuuuuu0.', '.00000000.'],
 };
 
 // Variantes de color de íconos existentes.
 ICONOS.linterna = recolorear([ICONOS.farol!], { c: '4', e: '5', f: 'e' })[0]!;
 ICONOS.leguas = recolorear([ICONOS.botas!], { b: 'r', c: 's' })[0]!;
+ICONOS.vidrio = recolorear([ICONOS.farol!], { c: '4', e: 'q', f: 'p' })[0]!;
 
 /** Sprites que se convierten en textura con fotogramas animados. */
 export const SPRITES: Record<string, Sprite> = {

@@ -46,6 +46,12 @@ export class Bot {
     return m > 0 ? { x: fx / m, y: fy / m } : { x: 0, y: 0 };
   }
 
+  /** El bot esquiva si un enemigo está a punto de tocarlo. */
+  pedirEsquiva(): boolean {
+    const e = this.horda.masCercano(this.j.x, this.j.y, 15);
+    return e !== null && !e.def.jefe;
+  }
+
   atacando(): boolean {
     return this.horda.masCercano(this.j.x, this.j.y, 120) !== null;
   }

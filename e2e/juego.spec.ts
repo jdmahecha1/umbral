@@ -273,6 +273,84 @@ test('con el «Ataque automático» activado, las armas atacan sin clic', async 
   await expect.poll(() => cargaHoz(page)).toBeLessThan(1);
 });
 
+/** Carga de la esquiva (1 = lista) y si está esquivando ahora. */
+async function esquiva(p: Page): Promise<{ carga: number; x: number }> {
+  return p.evaluate(() => {
+    const j = (window as any).__umbral.scene.getScene('Juego').jugador;
+    return { carga: j.cargaEsquiva(), x: j.x };
+  });
+}
+
+test('la esquiva da un impulso rápido y luego se recarga', async ({ page }, info) => {
+  await page.goto('/?jugar&semilla=3');
+  await expect.poll(async () => (await estado(page)).tiempo).toBeGreaterThan(0.5);
+  const antes = await esquiva(page);
+  expect(antes.carga).toBe(1);
+  if (info.project.name === 'movil') {
+    // El botón pequeño junto al de ataque.
+    const b = await page.evaluate(() => (window as any).__umbral.scene.getScene('Juego').controles.geometriaEsquiva());
+    const d = await dedo(page);
+    await d.enviar('touchStart', b.x, b.y);
+    await d.enviar('touchEnd');
+    await d.soltar();
+  } else {
+    // Primero se camina (así la esquiva sale hacia la derecha) y luego se esquiva.
+    await page.keyboard.down('d');
+    await expect.poll(async () => (await esquiva(page)).x).toBeGreaterThan(antes.x + 2);
+    const caminando = await esquiva(page);
+    await page.keyboard.press('Shift');
+    await expect.poll(async () => (await esquiva(page)).carga).toBeLessThan(1);
+    await page.waitForTimeout(300);
+    await page.keyboard.up('d');
+    // El impulso recorre mucho más que caminar ese mismo rato (≈ 19 unidades en 0,3 s).
+    expect((await esquiva(page)).x - caminando.x).toBeGreaterThan(35);
+  }
+  await expect.poll(async () => (await esquiva(page)).carga).toBeLessThan(1);
+  await expect.poll(async () => (await esquiva(page)).carga, { timeout: 10_000 }).toBe(1);
+});
+
+/** Centro en pantalla del botón del panel cuyo texto empieza por `inicio`. */
+async function botonHud(p: Page, inicio: string): Promise<{ x: number; y: number } | null> {
+  return p.evaluate((ini) => {
+    const hud = (window as any).__umbral.scene.getScene('Hud');
+    const buscar = (lista: any[]): any => {
+      for (const o of lista) {
+        if (o.type === 'Text' && String(o.text).startsWith(ini)) return o;
+        if (o.list) {
+          const r = buscar(o.list);
+          if (r) return r;
+        }
+      }
+      return null;
+    };
+    const t = buscar(hud.children.list);
+    if (!t) return null;
+    const r = t.getBounds();
+    return { x: r.centerX, y: r.centerY };
+  }, inicio);
+}
+
+test('al subir de nivel se puede volver a tirar y saltar a cambio de monedas', async ({ page }) => {
+  await page.goto('/?jugar&semilla=5');
+  await expect.poll(async () => (await estado(page)).tiempo).toBeGreaterThan(0.5);
+  await page.evaluate(() => ((window as any).__umbral.scene.getScene('Juego').pendientes = 1));
+  await expect.poll(async () => (await estado(page)).eligiendo).toBe(true);
+  await page.waitForTimeout(900);
+  const tiradas = () => page.evaluate(() => (window as any).__umbral.scene.getScene('Juego').estado.tiradas);
+  expect(await tiradas()).toBe(3);
+  const tirar = (await botonHud(page, 'Volver a tirar'))!;
+  await page.mouse.click(tirar.x, tirar.y);
+  await expect.poll(tiradas).toBe(2);
+  expect((await estado(page)).eligiendo).toBe(true);
+  await page.waitForTimeout(500);
+  const monedas = () => page.evaluate(() => (window as any).__umbral.scene.getScene('Juego').estado.monedas);
+  const antes = await monedas();
+  const saltar = (await botonHud(page, 'Saltar'))!;
+  await page.mouse.click(saltar.x, saltar.y);
+  await expect.poll(async () => (await estado(page)).eligiendo).toBe(false);
+  expect(await monedas()).toBe(antes + 8);
+});
+
 test('"Otra noche" reinicia la partida con la interfaz funcionando', async ({ page }) => {
   await page.goto('/?jugar&semilla=3');
   await expect.poll(async () => (await estado(page)).tiempo).toBeGreaterThan(0.5);

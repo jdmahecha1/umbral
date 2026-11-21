@@ -83,6 +83,7 @@ export class Menu extends Phaser.Scene {
     this.scene.launch('FondoMenu');
     this.scene.sendToBack('FondoMenu');
     const sonido = this.registry.get('sonido') as Sonido;
+    sonido.ponerPista('menu');
     const desbloquear = () => sonido.desbloquear();
     this.input.once('pointerdown', desbloquear);
     this.input.keyboard?.once('keydown', desbloquear);
@@ -162,7 +163,7 @@ export class Menu extends Phaser.Scene {
         CSS.apagado,
       ).setOrigin(0.5);
     }
-    texto(this, w / 2, h - 14 * u, `v${__VERSION__} · por toriikarii y kyotto44 · arte y sonido hechos en código`, 9 * u, CSS.apagado).setOrigin(0.5, 1);
+    texto(this, w / 2, h - 14 * u, `v${__VERSION__} · por toriikarii y kyotto44 · arte hecho en código`, 9 * u, CSS.apagado).setOrigin(0.5, 1);
   }
 
   private jugar(): void {
@@ -290,6 +291,8 @@ export class Menu extends Phaser.Scene {
       'Al pulsar Jugar eliges personaje. Todos están disponibles: unos pegan más, otros aguantan más o corren más. Puedes cambiar cada noche.',
       'Muévete con WASD o las flechas. En el celular, arrastra el dedo por la mitad izquierda de la pantalla.',
       'Ataca con el clic izquierdo (puedes mantenerlo presionado) o con la barra espaciadora: tus armas apuntan hacia el cursor. En el celular, mantén el dedo en la mitad derecha: mientras lo tocas, atacas y tus armas apuntan al enemigo más cercano.',
+      'Esquiva con Shift o con el clic derecho (en el celular, con el botón pequeño junto al de ataque): durante un instante nada te hace daño. Tarda un poco en recargarse.',
+      'Al subir de nivel eliges una mejora. Las armas llegan hasta el nivel 8. Si no te gusta ninguna, puedes volver a tirar (3 veces por noche) o saltar y llevarte unas monedas.',
       '¿Prefieres no hacer clic todo el rato? Activa "Ataque automático" en este menú o en la pausa: tus armas atacarán solas hacia donde apuntes (en el celular, al enemigo más cercano).',
       'Cada arma tarda un momento en volver a estar lista: lo ves en su ícono, abajo a la izquierda.',
       'Recoge el ámbar que dejan los enemigos para subir de nivel y elegir una mejora.',
