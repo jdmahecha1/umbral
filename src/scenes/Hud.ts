@@ -5,6 +5,7 @@ import { Controles } from '../game/controles';
 import { DURACION } from '../logic/enemigos';
 import { formatoTiempo, guardarAjustes, leerAjustes, leerRecords } from '../logic/guardado';
 import type { IdArma, IdMejora, Opcion } from '../logic/mejoras';
+import { RAREZAS, type Rareza } from '../logic/rareza';
 import { ARTICULOS, type IdArticulo } from '../logic/tienda';
 import type { Estado, Fin, Juego, Tienda } from './Juego';
 import { boton, navegarConTeclado, panel, texto, unidad, type Boton, type Guardia } from './ui';
@@ -293,37 +294,53 @@ export class Hud extends Phaser.Scene {
     x: number,
     y: number,
     w: number,
-    datos: { icono: string; titulo: string; etiqueta: string; colorEtiqueta: string; que: string; detalle: string[]; numero?: number; apagada?: boolean },
+    datos: {
+      icono: string;
+      titulo: string;
+      etiqueta: string;
+      colorEtiqueta: string;
+      que: string;
+      detalle: string[];
+      numero?: number;
+      apagada?: boolean;
+      rareza?: Rareza;
+    },
     alPulsar: () => void,
   ): { boton: Boton; alto: number; grupo: Phaser.GameObjects.Container } {
     const u = this.u;
     const pad = 10 * u;
     const tx = x - w / 2 + 54 * u;
     const ancho = w - 64 * u;
+    const rareza = datos.rareza ? RAREZAS[datos.rareza] : null;
+    const bordeReposo = rareza?.borde ?? COLOR.borde;
     const titulo = texto(this, tx, 0, datos.titulo, 14 * u, CSS.hueso, true);
     const etiqueta = texto(this, x + w / 2 - pad, 0, datos.etiqueta, 11 * u, datos.colorEtiqueta).setOrigin(1, 0);
     titulo.setWordWrapWidth(Math.max(60, ancho - etiqueta.width - 8 * u), true);
+    const nombreRareza = rareza ? texto(this, tx, 0, rareza.nombre, 10 * u, rareza.css) : null;
     const que = texto(this, tx, 0, datos.que, 11 * u, CSS.gris).setWordWrapWidth(ancho, true);
     const detalle = datos.detalle.length
       ? texto(this, tx, 0, datos.detalle.join('\n'), 11 * u, CSS.ambarClaro).setWordWrapWidth(ancho, true).setLineSpacing(1 * u)
       : null;
-    const alto = Math.max(64 * u, pad + titulo.height + 4 * u + que.height + (detalle ? 4 * u + detalle.height : 0) + pad);
+    const altoRareza = nombreRareza ? nombreRareza.height + 1 * u : 0;
+    const alto = Math.max(64 * u, pad + titulo.height + altoRareza + 4 * u + que.height + (detalle ? 4 * u + detalle.height : 0) + pad);
     const top = y;
-    const fondo = this.add.rectangle(x, top + alto / 2, w, alto, COLOR.panel).setStrokeStyle(Math.max(2, Math.round(2 * u)), COLOR.borde);
+    const fondo = this.add.rectangle(x, top + alto / 2, w, alto, COLOR.panel).setStrokeStyle(Math.max(2, Math.round(2 * u)), bordeReposo);
     titulo.setY(top + pad);
     etiqueta.setY(top + pad + 2 * u);
-    que.setY(titulo.y + titulo.height + 4 * u);
+    nombreRareza?.setY(titulo.y + titulo.height);
+    que.setY(titulo.y + titulo.height + altoRareza + 4 * u);
     detalle?.setY(que.y + que.height + 4 * u);
     const ic = this.add.image(x - w / 2 + 28 * u, top + alto / 2, `icono-${datos.icono}`);
     ic.setScale(Math.min((32 * u) / ic.width, (32 * u) / ic.height));
     const piezas: Phaser.GameObjects.GameObject[] = [fondo, ic, titulo, etiqueta, que];
+    if (nombreRareza) piezas.push(nombreRareza);
     if (detalle) piezas.push(detalle);
     if (datos.numero) piezas.push(texto(this, x - w / 2 + 5 * u, top + 3 * u, String(datos.numero), 9 * u, CSS.apagado));
     const grupo = this.add.container(0, 0, piezas);
     capa.add(grupo);
     if (datos.apagada) for (const p of piezas) (p as unknown as Phaser.GameObjects.Components.Alpha).setAlpha(0.55);
     const resaltar = (on: boolean) => {
-      fondo.setStrokeStyle(Math.max(2, Math.round(2 * u)), on ? COLOR.ambar : COLOR.borde).setFillStyle(on ? 0x221c2c : COLOR.panel);
+      fondo.setStrokeStyle(Math.max(2, Math.round(2 * u)), on ? COLOR.ambar : bordeReposo).setFillStyle(on ? 0x221c2c : COLOR.panel);
       titulo.setColor(on ? CSS.ambarClaro : CSS.hueso);
     };
     const pulsar = () => {
@@ -360,7 +377,16 @@ export class Hud extends Phaser.Scene {
         w / 2,
         y,
         ancho,
-        { icono: op.id, titulo: op.nombre, etiqueta, colorEtiqueta: op.nivel === 1 ? CSS.musgo : CSS.ambar, que: op.que, detalle: op.cambios, numero: i + 1 },
+        {
+          icono: op.id,
+          titulo: op.nombre,
+          etiqueta,
+          colorEtiqueta: op.nivel === 1 ? CSS.musgo : CSS.ambar,
+          que: op.que,
+          detalle: op.cambios,
+          numero: i + 1,
+          rareza: op.rareza,
+        },
         () => {
           this.cerrarCapa();
           this.juego.elegir(op.id as IdMejora);
@@ -456,6 +482,7 @@ export class Hud extends Phaser.Scene {
           que: art.texto,
           detalle: [art.tipo === 'reliquia' ? 'Reliquia: dura hasta el final de esta partida' : 'Efecto inmediato'],
           apagada: !alcanza,
+          rareza: art.rareza,
         },
         () => this.comprar(o.id as IdArticulo),
       );
